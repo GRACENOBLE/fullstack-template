@@ -58,7 +58,7 @@ Each doc file has `last_verified` and `sources` frontmatter. The `docs` agent ma
 ## Project layout
 ```
 backend/
-  cmd/api/main.go               # entry point — wires layers, graceful shutdown
+   cmd/api/main.go               # entry point — wires layers, graceful shutdown
   internal/
     domain/                     # Layer 1: entities + repository interfaces (no external deps)
       health.go                 # HealthStats type

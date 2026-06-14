@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"backend/internal/bootstrap"
 	"backend/internal/server"
 )
 
@@ -32,10 +34,17 @@ func gracefulShutdown(apiServer *http.Server, done chan bool) {
 }
 
 func main() {
-	srv, err := server.NewServer()
+	// Signal-aware context so SIGINT/SIGTERM cancels bootstrap probes immediately.
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	app, err := bootstrap.Run(ctx)
+	stop() // release signal handler; gracefulShutdown re-registers it
+
 	if err != nil {
-		log.Fatalf("failed to initialize server: %v", err)
+		fmt.Fprintf(os.Stderr, "startup failed: %v\n", err)
+		os.Exit(1)
 	}
+
+	srv := server.NewServer(app)
 
 	done := make(chan bool, 1)
 	go gracefulShutdown(srv, done)

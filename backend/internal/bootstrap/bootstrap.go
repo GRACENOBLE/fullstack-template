@@ -1,0 +1,189 @@
+package bootstrap
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"log/slog"
+	"math"
+	"math/rand/v2"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "github.com/joho/godotenv/autoload"
+
+	"backend/internal/repository/postgres"
+)
+
+const (
+	maxAttempts  = 5
+	baseDelay    = 500 * time.Millisecond
+	maxDelay     = 16 * time.Second
+	totalTimeout = 60 * time.Second
+	pingTimeout  = 15 * time.Second // accommodates Neon cold starts (~8-15 s)
+)
+
+// App holds all initialised, validated shared dependencies.
+// Constructed once by Run and passed to the HTTP server.
+type App struct {
+	DB     *sql.DB
+	Config Config
+	Log    *slog.Logger
+}
+
+// Config holds all validated configuration values read from environment variables.
+type Config struct {
+	Port   int
+	AppEnv string
+	DB     postgres.DBConfig
+}
+
+// ConfigError is returned when required configuration is absent or invalid.
+type ConfigError struct {
+	Issues []string
+}
+
+func (e *ConfigError) Error() string {
+	return "invalid configuration: " + strings.Join(e.Issues, "; ")
+}
+
+// Pinger is satisfied by any dependency that can report its own liveness.
+type Pinger interface {
+	PingContext(ctx context.Context) error
+}
+
+// Run loads configuration, initialises all shared dependencies, validates required
+// config, and probes services for readiness before returning. A non-nil error means
+// the process should not start; callers should exit with a non-zero status code.
+func Run(ctx context.Context) (*App, error) {
+	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+
+	log.Info("bootstrap: starting")
+
+	cfg := loadConfig()
+
+	if err := validateConfig(cfg, log); err != nil {
+		return nil, err
+	}
+
+	db, err := postgres.NewPostgresDB(cfg.DB)
+	if err != nil {
+		return nil, fmt.Errorf("bootstrap: database: %w", err)
+	}
+
+	probeCtx, cancel := context.WithTimeout(ctx, totalTimeout)
+	defer cancel()
+
+	if err := probeWithRetry(probeCtx, "postgres", db, log); err != nil {
+		return nil, err
+	}
+
+	log.Info("bootstrap: all checks passed — ready to serve")
+
+	return &App{
+		DB:     db,
+		Config: cfg,
+		Log:    log,
+	}, nil
+}
+
+func loadConfig() Config {
+	port, _ := strconv.Atoi(os.Getenv("PORT"))
+	if port == 0 {
+		port = 8080
+	}
+
+	schema := os.Getenv("BLUEPRINT_DB_SCHEMA")
+	if schema == "" {
+		schema = "public"
+	}
+
+	sslMode := os.Getenv("BLUEPRINT_DB_SSLMODE")
+	if sslMode == "" {
+		sslMode = "disable"
+	}
+
+	return Config{
+		Port:   port,
+		AppEnv: os.Getenv("APP_ENV"),
+		DB: postgres.DBConfig{
+			Host:     os.Getenv("BLUEPRINT_DB_HOST"),
+			Port:     os.Getenv("BLUEPRINT_DB_PORT"),
+			Database: os.Getenv("BLUEPRINT_DB_DATABASE"),
+			Username: os.Getenv("BLUEPRINT_DB_USERNAME"),
+			Password: os.Getenv("BLUEPRINT_DB_PASSWORD"),
+			Schema:   schema,
+			SSLMode:  sslMode,
+		},
+	}
+}
+
+func validateConfig(cfg Config, log *slog.Logger) error {
+	log.Info("bootstrap: validating configuration")
+
+	var issues []string
+
+	requireNonEmpty := func(name, val string) {
+		if strings.TrimSpace(val) == "" {
+			issues = append(issues, fmt.Sprintf("%s must not be empty", name))
+		}
+	}
+
+	requireNonEmpty("BLUEPRINT_DB_HOST", cfg.DB.Host)
+	requireNonEmpty("BLUEPRINT_DB_PORT", cfg.DB.Port)
+	requireNonEmpty("BLUEPRINT_DB_DATABASE", cfg.DB.Database)
+	requireNonEmpty("BLUEPRINT_DB_USERNAME", cfg.DB.Username)
+	requireNonEmpty("BLUEPRINT_DB_PASSWORD", cfg.DB.Password)
+
+	if len(issues) > 0 {
+		for _, issue := range issues {
+			log.Error("bootstrap: config invalid", "detail", issue)
+		}
+		return &ConfigError{Issues: issues}
+	}
+
+	log.Info("bootstrap: configuration valid")
+	return nil
+}
+
+func probeWithRetry(ctx context.Context, name string, p Pinger, log *slog.Logger) error {
+	var lastErr error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		if attempt > 1 {
+			delay := jitteredBackoff(attempt - 1)
+			log.Info("bootstrap: waiting before retry",
+				"service", name, "attempt", attempt, "delay", delay.String())
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("bootstrap: %s: timed out after %d attempt(s): %w", name, attempt-1, lastErr)
+			case <-time.After(delay):
+			}
+		}
+
+		log.Info("bootstrap: probing service",
+			"service", name, "attempt", attempt, "max_attempts", maxAttempts)
+
+		attemptCtx, cancel := context.WithTimeout(ctx, pingTimeout)
+		pingErr := p.PingContext(attemptCtx)
+		cancel()
+
+		if pingErr == nil {
+			log.Info("bootstrap: service ready", "service", name, "attempts", attempt)
+			return nil
+		}
+		lastErr = pingErr
+		log.Warn("bootstrap: service not ready",
+			"service", name, "attempt", attempt, "error", pingErr)
+	}
+	return fmt.Errorf("bootstrap: %s: not reachable after %d attempts: %w", name, maxAttempts, lastErr)
+}
+
+// jitteredBackoff returns a random duration in [0, min(maxDelay, baseDelay*2^attempt)].
+// Full jitter avoids thundering-herd on simultaneous restarts.
+func jitteredBackoff(attempt int) time.Duration {
+	cap := time.Duration(math.Min(float64(maxDelay), float64(baseDelay)*math.Pow(2, float64(attempt))))
+	return time.Duration(rand.Int64N(int64(cap) + 1))
+}

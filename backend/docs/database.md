@@ -1,11 +1,11 @@
 ---
 topic: database
-last_verified: 2026-06-14
+last_verified: 2026-06-15
 sources:
   - internal/domain/health.go
   - internal/usecase/health_usecase.go
-  - internal/repository/postgres/db.go
-  - internal/repository/postgres/health_repository.go
+  - internal/infrastructure/database/postgres/db.go
+  - internal/infrastructure/database/postgres/health_repository.go
 ---
 
 # Database
@@ -16,7 +16,7 @@ Import: `_ "github.com/jackc/pgx/v5/stdlib"` (blank import in `db.go`, registers
 Do NOT use pgx's native API — use `database/sql` methods only.
 
 ## Connection
-No singleton. `NewPostgresDB` is called once in `internal/server/server.go` and the returned `*sql.DB` is passed down the dependency chain. The caller is responsible for calling `db.Close()` on shutdown.
+No singleton. `NewPostgresDB` is called once in `internal/bootstrap/bootstrap.go` and the returned `*sql.DB` is stored on `bootstrap.App`, then passed to repositories in `internal/server/server.go`. The caller is responsible for calling `db.Close()` on shutdown.
 
 `DBConfig` holds all connection parameters:
 
@@ -39,14 +39,14 @@ Connection string format:
 postgres://username:password@host:port/database?sslmode=disable&search_path=schema
 ```
 
-Env vars are loaded via `_ "github.com/joho/godotenv/autoload"` blank import in `internal/server/server.go` only.
+Env vars are loaded via `_ "github.com/joho/godotenv/autoload"` blank import in `internal/bootstrap/bootstrap.go`.
 
 ## Architecture layers
 
 ```
-internal/domain/health.go          — HealthStats type (map[string]string alias)
-internal/usecase/health_usecase.go — HealthReader interface (repo contract), HealthUseCase interface, healthUseCase impl
-internal/repository/postgres/      — HealthRepository: implements HealthReader against *sql.DB
+internal/domain/health.go                        — HealthStats type
+internal/usecase/health_usecase.go               — HealthReader interface (repo contract), HealthUseCase interface + impl
+internal/infrastructure/database/postgres/       — HealthRepository: implements HealthReader against *sql.DB
 ```
 
 The `HealthReader` interface is defined in the `usecase` package (Dependency Inversion — the use case owns the interface it depends on):
@@ -78,11 +78,11 @@ func NewHealthRepository(db *sql.DB) *HealthRepository {
 ## Adding a new query — exact pattern
 1. Define a domain type in `internal/domain/` if needed.
 2. Add a repository interface in the relevant `usecase/` file (the use case owns the interface).
-3. Implement the repository in `internal/repository/postgres/` as a struct with a `New*` constructor.
+3. Implement the repository in `internal/infrastructure/database/postgres/` as a struct with a `New*` constructor.
 4. Use `db.QueryContext` / `db.QueryRowContext` / `db.ExecContext`. Always pass `ctx`.
 5. Always use parameterized queries — `$1`, `$2`, etc. Never string-concatenate SQL.
 6. Return `(Result, error)` — never swallow errors or call `log.Fatal`.
-7. Add integration test in `internal/repository/postgres/`.
+7. Add integration test in `internal/infrastructure/database/postgres/`.
 
 ```go
 // Repository method

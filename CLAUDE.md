@@ -72,24 +72,34 @@ Each doc file has `last_verified` and `sources` frontmatter. The `docs` agent ma
 backend/
   cmd/api/main.go               # entry point — wires layers, graceful shutdown
   cmd/migrate/main.go           # migration CLI — wraps goose, reads BLUEPRINT_DB_* env vars
-  migrations/                   # SQL migration files (goose) — YYYYMMDDHHMMSS_<slug>.sql
   internal/
-    domain/                     # Layer 1: entities + repository interfaces (no external deps)
+    bootstrap/
+      bootstrap.go              # App struct, Run() — config validation, DB init, service probing
+    domain/                     # Layer 1: entities (no external deps)
       health.go                 # HealthStats type
     usecase/                    # Layer 2: application logic
       health_usecase.go         # HealthReader interface, HealthUseCase interface + impl
-    repository/postgres/        # Layer 3: DB implementations
-      db.go                     # DBConfig, NewPostgresDB() → *sql.DB
-      health_repository.go      # implements HealthReader
-      health_repository_test.go # integration tests (Testcontainers)
-    handler/                    # Layer 3: HTTP adapters
-      handler.go                # Handler struct, NewHandler()
-      routes.go                 # RegisterRoutes() on *Handler
-      hello_handler.go          # HelloWorldHandler
-      health_handler.go         # healthHandler (503 when DB down)
-      hello_handler_test.go     # httptest unit tests
+    infrastructure/
+      database/
+        postgres/               # Layer 3: DB implementations
+          db.go                 # DBConfig, NewPostgresDB() → *sql.DB
+          health_repository.go  # implements HealthReader
+          health_repository_test.go # integration tests (Testcontainers)
+        migrations/             # SQL migration files (goose) — YYYYMMDDHHMMSS_<slug>.sql
+    transport/
+      handlers/                 # Layer 3: HTTP adapters
+        handler.go              # Handler struct, NewHandler()
+        routes.go               # RegisterRoutes() on *Handler
+        hello_handler.go        # HelloWorldHandler
+        health_handler.go       # HealthHandler (503 when DB down)
+        hello_handler_test.go   # httptest unit tests
+      middleware/
+        logger.go               # structuredLogger() — slog-based Gin middleware
     server/
       server.go                 # NewServer() — wires all layers, returns *http.Server
+  pkg/
+    logger/
+      logger.go                 # New(env) — JSON handler for staging/production, text otherwise
   docker-compose.yml
   .env                          # never commit secrets
   Makefile
@@ -105,10 +115,10 @@ mobile/
 ```
 
 ## Go conventions (Clean Architecture)
-- Follow the dependency rule: `domain` ← `usecase` ← `handler`/`repository` ← `server` ← `cmd`.
-- New feature → add entity to `domain/`, interface to `usecase/`, implementation to `repository/postgres/`, handler to `handler/`, wire in `server/server.go`.
-- New route → add use case interface + impl in `usecase/`, handler method on `*Handler`, register in `handler/routes.go`, wire in `server/server.go`.
-- Repository interfaces live in `usecase/` (the layer that depends on them), not in `repository/`.
+- Follow the dependency rule: `domain` ← `usecase` ← `transport`/`infrastructure` ← `server` ← `cmd`.
+- New feature → add entity to `domain/`, interface to `usecase/`, implementation to `infrastructure/database/postgres/`, handler to `transport/handlers/`, wire in `server/server.go`.
+- New route → add use case interface + impl in `usecase/`, handler method on `*Handler`, register in `transport/handlers/routes.go`, wire in `server/server.go`.
+- Repository interfaces live in `usecase/` (the layer that depends on them), not in `infrastructure/`.
 - Return errors up the stack. Never `log.Fatal` or `os.Exit` inside `internal/`.
 - Run `go vet ./...` before committing.
 
@@ -137,9 +147,9 @@ mobile/
 
 ## Testing — non-negotiable
 - **Never mock the database.** Always use Testcontainers.
-- Follow the `TestMain` + `mustStartPostgresContainer()` pattern in `repository/postgres/health_repository_test.go`.
-- DB integration tests live in `internal/repository/postgres/` (`package postgres`).
-- Handler unit tests live in `internal/handler/` and may use mock use cases — that is not mocking the database.
+- Follow the `TestMain` + `mustStartPostgresContainer()` pattern in `internal/infrastructure/database/postgres/health_repository_test.go`.
+- DB integration tests live in `internal/infrastructure/database/postgres/` (`package postgres`).
+- Handler unit tests live in `internal/transport/handlers/` and may use mock use cases — that is not mocking the database.
 - Docker must be running for integration tests.
 
 ## Hard rules (hooks enforce some of these)

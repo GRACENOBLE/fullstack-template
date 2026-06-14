@@ -3,31 +3,34 @@ topic: environment
 last_verified: 2026-06-14
 sources:
   - .env
-  - internal/database/database.go
-  - internal/server/server.go
+  - internal/bootstrap/bootstrap.go
+  - internal/repository/postgres/db.go
 ---
 
 # Environment Variables
 
 ## Loading mechanism
-`godotenv` is loaded automatically via blank imports in two files:
-- `internal/database/database.go`: `_ "github.com/joho/godotenv/autoload"`
-- `internal/server/server.go`: `_ "github.com/joho/godotenv/autoload"`
-
-This means `.env` in the working directory is loaded on package init — no explicit `godotenv.Load()` call needed.
+`godotenv` is loaded automatically via a blank import in `internal/bootstrap/bootstrap.go`:
+```go
+_ "github.com/joho/godotenv/autoload"
+```
+This runs on package init before any env var is read — no explicit `godotenv.Load()` call needed. Because `bootstrap` is the first package imported in `main`, `.env` is loaded before config validation runs.
 
 ## Variables reference
 
 | Variable | Used in | Default | Description |
 |---|---|---|---|
-| `PORT` | `server.go` | `8080` | HTTP server listen port |
-| `APP_ENV` | (available) | `local` | Environment name (`local`, `production`) |
-| `BLUEPRINT_DB_HOST` | `database.go` | `localhost` | Postgres host |
-| `BLUEPRINT_DB_PORT` | `database.go` | `5432` | Postgres port |
-| `BLUEPRINT_DB_DATABASE` | `database.go` | `blueprint` | Database name |
-| `BLUEPRINT_DB_USERNAME` | `database.go` | — | Postgres username |
-| `BLUEPRINT_DB_PASSWORD` | `database.go` | — | Postgres password |
-| `BLUEPRINT_DB_SCHEMA` | `database.go` | `public` | Postgres search_path schema |
+| `PORT` | `bootstrap.go` | `8080` | HTTP server listen port |
+| `APP_ENV` | `bootstrap.go` | — | Environment name (`local`, `production`) |
+| `BLUEPRINT_DB_HOST` | `bootstrap.go` | — | Postgres host (**required**) |
+| `BLUEPRINT_DB_PORT` | `bootstrap.go` | — | Postgres port (**required**) |
+| `BLUEPRINT_DB_DATABASE` | `bootstrap.go` | — | Database name (**required**) |
+| `BLUEPRINT_DB_USERNAME` | `bootstrap.go` | — | Postgres username (**required**) |
+| `BLUEPRINT_DB_PASSWORD` | `bootstrap.go` | — | Postgres password (**required**) |
+| `BLUEPRINT_DB_SCHEMA` | `bootstrap.go` | `public` | Postgres search_path schema |
+| `BLUEPRINT_DB_SSLMODE` | `bootstrap.go` | `disable` | Postgres SSL mode (`disable`, `require`, `verify-full`) |
+
+Variables marked **required** are validated by `bootstrap.validateConfig` at startup — the process exits before attempting a DB connection if any are missing.
 
 ## `.env` file
 Located at `backend/.env`. Never commit this file with real credentials.
@@ -37,6 +40,7 @@ Docker Compose reads the same `.env` file to configure the Postgres container, s
 
 ## Adding a new environment variable
 1. Add to `backend/.env` with a descriptive name.
-2. Read with `os.Getenv("VAR_NAME")` at package level or inside the function that needs it.
-3. Document it in this file.
-4. Update `docker-compose.yml` if Docker also needs it.
+2. Read it in `internal/bootstrap/bootstrap.go` inside `loadConfig()` and store it on `Config`.
+3. If required, add a `requireNonEmpty` call in `validateConfig`.
+4. Document it in this file.
+5. Update `docker-compose.yml` if Docker also needs it.

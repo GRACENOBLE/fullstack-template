@@ -1,15 +1,18 @@
-package handler
+package handlers
 
 import (
 	"net/http"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+
+	"backend/internal/transport/middleware"
 )
 
 // RegisterRoutes creates the Gin engine, applies middleware, and registers all routes.
 func (h *Handler) RegisterRoutes() http.Handler {
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Recovery(), middleware.Logger())
 
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000"},

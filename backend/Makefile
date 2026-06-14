@@ -27,7 +27,7 @@ test:
 # Integration tests (requires Docker)
 itest:
 	@echo "Running integration tests..."
-	@go test ./internal/repository/postgres/... -v
+	@go test ./internal/infrastructure/database/postgres/... -v
 
 # Clean the binary
 clean:

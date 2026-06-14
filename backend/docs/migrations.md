@@ -1,9 +1,9 @@
 ---
 topic: migrations
-last_verified: 2026-06-14
+last_verified: 2026-06-15
 sources:
   - cmd/migrate/main.go
-  - migrations/
+  - internal/infrastructure/database/migrations/
   - Makefile
 ---
 
@@ -14,12 +14,12 @@ goose v3 (`github.com/pressly/goose/v3`).
 Entry point: `cmd/migrate/main.go` — a thin wrapper that reuses `postgres.NewPostgresDB` and reads the same `BLUEPRINT_DB_*` env vars as the server. No separate goose binary installation needed.
 
 ## File location
-`backend/migrations/` — SQL files only. Naming: `YYYYMMDDHHMMSS_<slug>.sql`, created automatically by `make migrate-create`.
+`backend/internal/infrastructure/database/migrations/` — SQL files only. Naming: `YYYYMMDDHHMMSS_<slug>.sql`, created automatically by `make migrate-create`.
 
 ## Makefile targets
 | Target | What it does |
 |---|---|
-| `make migrate-create name=<slug>` | Create a new timestamped SQL file in `migrations/` |
+| `make migrate-create name=<slug>` | Create a new timestamped SQL file in `internal/infrastructure/database/migrations/` |
 | `make migrate-status` | Show applied vs. pending migrations |
 | `make migrate-up` | Apply all pending migrations |
 | `make migrate-up-one` | Apply only the next pending migration |

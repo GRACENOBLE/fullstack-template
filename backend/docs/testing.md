@@ -1,9 +1,9 @@
 ---
 topic: testing
-last_verified: 2026-06-14
+last_verified: 2026-06-15
 sources:
-  - internal/repository/postgres/health_repository_test.go
-  - internal/handler/hello_handler_test.go
+  - internal/infrastructure/database/postgres/health_repository_test.go
+  - internal/transport/handlers/hello_handler_test.go
 ---
 
 # Testing
@@ -56,8 +56,8 @@ func TestMain(m *testing.M) {
 
 ## Package placement
 Tests live in the **same package** as the code under test.
-- Repository tests: `package postgres` in `internal/repository/postgres/`
-- Handler tests: `package handler` in `internal/handler/`
+- Repository tests: `package postgres` in `internal/infrastructure/database/postgres/`
+- Handler tests: `package handlers` in `internal/transport/handlers/`
 
 ## Handler unit tests
 Handlers that have no DB dependency (e.g. `HelloWorldHandler`) use `httptest` without Testcontainers:
@@ -79,12 +79,12 @@ func TestHelloWorldHandler(t *testing.T) {
 ## Running tests
 ```bash
 make test    # unit + integration (requires Docker)
-make itest   # integration only — runs ./internal/repository/postgres/...
-go test ./internal/repository/postgres/... -v -run TestHealth  # single test
+make itest   # integration only — runs ./internal/infrastructure/database/postgres/...
+go test ./internal/infrastructure/database/postgres/... -v -run TestHealth  # single test
 ```
 
 ## Adding a new integration test
-1. Add a `TestXxx(t *testing.T)` function in a `_test.go` file under `internal/repository/postgres/` (same package).
+1. Add a `TestXxx(t *testing.T)` function in a `_test.go` file under `internal/infrastructure/database/postgres/` (same package).
 2. Construct the repository under test using `testDB`: e.g. `repo := NewHealthRepository(testDB)`.
 3. Call repository methods directly and assert on the results.
 4. Use table-driven tests for multiple cases:

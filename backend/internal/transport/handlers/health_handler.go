@@ -1,7 +1,7 @@
-package handler
+package handlers
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -10,7 +10,7 @@ import (
 func (h *Handler) HealthHandler(c *gin.Context) {
 	stats, err := h.healthUC.GetHealth(c.Request.Context())
 	if err != nil {
-		log.Printf("health check failed: %v", err)
+		slog.Warn("health check failed", "error", err)
 		c.JSON(http.StatusServiceUnavailable, stats)
 		return
 	}

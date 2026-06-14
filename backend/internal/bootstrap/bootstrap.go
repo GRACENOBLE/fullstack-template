@@ -15,7 +15,8 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/joho/godotenv/autoload"
 
-	"backend/internal/repository/postgres"
+	"backend/internal/infrastructure/database/postgres"
+	"backend/pkg/logger"
 )
 
 const (
@@ -36,9 +37,9 @@ type App struct {
 
 // Config holds all validated configuration values read from environment variables.
 type Config struct {
-	Port   int
-	AppEnv string
-	DB     postgres.DBConfig
+	Port int
+	Env  string
+	DB   postgres.DBConfig
 }
 
 // ConfigError is returned when required configuration is absent or invalid.
@@ -59,7 +60,8 @@ type Pinger interface {
 // config, and probes services for readiness before returning. A non-nil error means
 // the process should not start; callers should exit with a non-zero status code.
 func Run(ctx context.Context) (*App, error) {
-	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	log := logger.New(os.Getenv("ENV"))
+	slog.SetDefault(log)
 
 	log.Info("bootstrap: starting")
 
@@ -107,8 +109,8 @@ func loadConfig() Config {
 	}
 
 	return Config{
-		Port:   port,
-		AppEnv: os.Getenv("APP_ENV"),
+		Port: port,
+		Env:  os.Getenv("ENV"),
 		DB: postgres.DBConfig{
 			Host:     os.Getenv("BLUEPRINT_DB_HOST"),
 			Port:     os.Getenv("BLUEPRINT_DB_PORT"),

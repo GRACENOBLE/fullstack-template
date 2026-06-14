@@ -16,9 +16,10 @@ Never use `log.Fatal` or `os.Exit` inside `internal/`.
 ## Documented exception (intentional)
 | Location | Call | Reason |
 |---|---|---|
-| `cmd/api/main.go: main()` | `log.Fatalf(...)` | `server.NewServer()` returned an error — process cannot start |
+| `cmd/api/main.go: main()` | `fmt.Fprintf(os.Stderr, ...) + os.Exit(1)` | `bootstrap.Run()` returned an error — process cannot start |
 
-This is the only permitted `log.Fatal` call and it lives in `cmd/`, not `internal/`.
+This is the only permitted early-exit path and it lives in `cmd/`, not `internal/`.
+`server.NewServer` does not return an error — all fallible startup work is done by `bootstrap.Run`.
 
 ## Repository errors
 Repository methods return `(Result, error)`. On failure, wrap with context using `fmt.Errorf`:

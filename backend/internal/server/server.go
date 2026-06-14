@@ -5,17 +5,26 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
 	"backend/internal/bootstrap"
-	"backend/internal/handler"
-	"backend/internal/repository/postgres"
+	"backend/internal/infrastructure/database/postgres"
+	"backend/internal/transport/handlers"
 	"backend/internal/usecase"
 )
 
 // NewServer wires all layers and returns a configured *http.Server.
 func NewServer(app *bootstrap.App) *http.Server {
+	switch app.Config.Env {
+	case "staging", "production":
+		gin.SetMode(gin.ReleaseMode)
+	default:
+		gin.SetMode(gin.DebugMode)
+	}
+
 	healthRepo := postgres.NewHealthRepository(app.DB)
 	healthUC := usecase.NewHealthUseCase(healthRepo)
-	h := handler.NewHandler(healthUC)
+	h := handlers.NewHandler(healthUC)
 
 	return &http.Server{
 		Addr:         fmt.Sprintf(":%d", app.Config.Port),

@@ -9,10 +9,10 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/pressly/goose/v3"
 
-	"backend/internal/repository/postgres"
+	"backend/internal/infrastructure/database/postgres"
 )
 
-const migrationsDir = "migrations"
+const migrationsDir = "internal/infrastructure/database/migrations"
 
 func main() {
 	if len(os.Args) < 2 {

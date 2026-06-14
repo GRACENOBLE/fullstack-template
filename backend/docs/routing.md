@@ -26,17 +26,16 @@ func NewHandler(healthUC usecase.HealthUseCase) *Handler {
 The `Handler` struct holds use case interfaces — not `*sql.DB` directly. Add new use case fields here as features are added.
 
 ## Wiring (server.go)
-`internal/server/server.go` contains `NewServer() (*http.Server, error)` — wiring only, no logic.
-It builds `DBConfig` from env, calls `NewPostgresDB`, constructs the repository, use case, and handler in order, then returns a configured `*http.Server`.
+`internal/server/server.go` contains `NewServer(app *bootstrap.App) *http.Server` — wiring only, no logic.
+It receives the already-validated `*bootstrap.App` (which holds `*sql.DB` and `Config`), constructs the repository, use case, and handler in order, then returns a configured `*http.Server`. It does not read env vars or return an error.
 
 ```go
-db, err := postgres.NewPostgresDB(cfg)
-healthRepo := postgres.NewHealthRepository(db)
+healthRepo := postgres.NewHealthRepository(app.DB)
 healthUC := usecase.NewHealthUseCase(healthRepo)
 h := handler.NewHandler(healthUC)
 
-srv := &http.Server{
-    Addr:         fmt.Sprintf(":%d", port),
+return &http.Server{
+    Addr:         fmt.Sprintf(":%d", app.Config.Port),
     Handler:      h.RegisterRoutes(),
     IdleTimeout:  time.Minute,
     ReadTimeout:  10 * time.Second,
@@ -85,7 +84,8 @@ Allowed methods: GET, POST, PUT, DELETE, OPTIONS, PATCH.
 ## Graceful shutdown
 Wired in `cmd/api/main.go` via `signal.NotifyContext` for SIGINT/SIGTERM.
 5-second shutdown timeout. Server notifies `done chan bool` when complete.
-`main()` handles the error returned by `server.NewServer()` with `log.Fatalf`.
+`main()` calls `bootstrap.Run(ctx)` first; on failure it writes to stderr and calls `os.Exit(1)`.
+`server.NewServer` does not return an error — all fallible startup work is in bootstrap.
 Do not add shutdown logic to `internal/` — it belongs in `cmd/`.
 
 ## Adding a new route — checklist

@@ -61,5 +61,10 @@ func main() {
 	}
 
 	<-done
+	if app.Cache != nil {
+		if err := app.Cache.Close(); err != nil {
+			slog.Error("cache close error", "error", err)
+		}
+	}
 	slog.Info("graceful shutdown complete")
 }

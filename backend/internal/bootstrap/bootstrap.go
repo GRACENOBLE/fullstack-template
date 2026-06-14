@@ -15,7 +15,9 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/joho/godotenv/autoload"
 
+	"backend/internal/infrastructure/cache/redis"
 	"backend/internal/infrastructure/database/postgres"
+	"backend/internal/usecase"
 	"backend/pkg/logger"
 )
 
@@ -31,15 +33,17 @@ const (
 // Constructed once by Run and passed to the HTTP server.
 type App struct {
 	DB     *sql.DB
+	Cache  usecase.CacheService // nil when REDIS_URL is not set
 	Config Config
 	Log    *slog.Logger
 }
 
 // Config holds all validated configuration values read from environment variables.
 type Config struct {
-	Port int
-	Env  string
-	DB   postgres.DBConfig
+	Port     int
+	Env      string
+	DB       postgres.DBConfig
+	RedisURL string
 }
 
 // ConfigError is returned when required configuration is absent or invalid.
@@ -83,10 +87,23 @@ func Run(ctx context.Context) (*App, error) {
 		return nil, err
 	}
 
+	var cache usecase.CacheService
+	if cfg.RedisURL != "" {
+		c, err := redis.New(cfg.RedisURL)
+		if err != nil {
+			return nil, fmt.Errorf("bootstrap: redis: %w", err)
+		}
+		if err := probeWithRetry(probeCtx, "redis", c, log); err != nil {
+			return nil, err
+		}
+		cache = c
+	}
+
 	log.Info("bootstrap: all checks passed — ready to serve")
 
 	return &App{
 		DB:     db,
+		Cache:  cache,
 		Config: cfg,
 		Log:    log,
 	}, nil
@@ -109,8 +126,9 @@ func loadConfig() Config {
 	}
 
 	return Config{
-		Port: port,
-		Env:  os.Getenv("ENV"),
+		Port:     port,
+		Env:      os.Getenv("ENV"),
+		RedisURL: os.Getenv("REDIS_URL"),
 		DB: postgres.DBConfig{
 			Host:     os.Getenv("BLUEPRINT_DB_HOST"),
 			Port:     os.Getenv("BLUEPRINT_DB_PORT"),

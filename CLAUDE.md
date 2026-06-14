@@ -24,18 +24,30 @@ cd mobile && ./gradlew lint && ./gradlew test # mobile quality gate
 cd mobile && ./gradlew connectedAndroidTest   # instrumented tests (emulator/device required)
 ```
 
+## Migration commands (run from backend/)
+```bash
+make migrate-create name=<slug>   # create a new timestamped SQL migration file
+make migrate-status               # show applied vs. pending migrations
+make migrate-up                   # apply all pending migrations
+make migrate-up-one               # apply the next pending migration only
+make migrate-down                 # roll back the last applied migration
+make migrate-reset                # roll back everything to version 0
+make migrate-version              # print current schema version
+```
+
 ## Feature development workflow — always follow this
 1. **Check docs first** — delegate to `docs` agent: find relevant topic docs, verify they match the current code
 2. **Fix stale docs** — if docs diverge from code, update docs before implementing
-3. **Implement** — delegate to `backend` or `web` agent, passing the relevant doc content as context
-4. **Update docs** — delegate to `docs` agent: update `last_verified`, add new topics if introduced
-5. **Quality gate** — run `/project:check` before declaring done
+3. **Migrate** — if the feature needs new or changed tables: `make migrate-create name=<slug>`, write the SQL, `make migrate-up`
+4. **Implement** — delegate to `backend` or `web` agent, passing the relevant doc content as context
+5. **Update docs** — delegate to `docs` agent: update `last_verified`, add new topics if introduced
+6. **Quality gate** — run `/project:check` before declaring done
 
 Use `/project:implement` to run this workflow end-to-end.
 
 ## Documentation locations
 ```
-backend/docs/    # database, routing, testing, error-handling, environment
+backend/docs/    # database, migrations, routing, testing, error-handling, environment
 web/docs/        # routing, data-fetching, styling, components
 mobile/docs/     # compose-conventions, architecture, testing
 ```
@@ -58,7 +70,9 @@ Each doc file has `last_verified` and `sources` frontmatter. The `docs` agent ma
 ## Project layout
 ```
 backend/
-   cmd/api/main.go               # entry point — wires layers, graceful shutdown
+  cmd/api/main.go               # entry point — wires layers, graceful shutdown
+  cmd/migrate/main.go           # migration CLI — wraps goose, reads BLUEPRINT_DB_* env vars
+  migrations/                   # SQL migration files (goose) — YYYYMMDDHHMMSS_<slug>.sql
   internal/
     domain/                     # Layer 1: entities + repository interfaces (no external deps)
       health.go                 # HealthStats type
@@ -97,6 +111,14 @@ mobile/
 - Repository interfaces live in `usecase/` (the layer that depends on them), not in `repository/`.
 - Return errors up the stack. Never `log.Fatal` or `os.Exit` inside `internal/`.
 - Run `go vet ./...` before committing.
+
+## Migrations (goose)
+- Any feature that introduces or changes a table **must** include a goose migration.
+- `make migrate-create name=<slug>` → edit the generated SQL → `make migrate-up`.
+- SQL only — no Go migrations. No DDL inside repository methods.
+- Never edit or delete an applied migration; add a new one to fix it.
+- Integration tests do NOT run migrations — Testcontainers starts blank and tests create their own schema via `testDB.Exec`.
+- See `backend/docs/migrations.md` for the full workflow and format rules.
 
 ## TypeScript/React conventions
 - App Router only. Default to Server Components.

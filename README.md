@@ -1,6 +1,6 @@
 # Fullstack Template
 
-A production-ready fullstack template to skip the boilerplate and focus on building features. Ships with a Go + Gin backend, Next.js 15 frontend, PostgreSQL database, Docker Compose, hot reload, and integration testing — all wired together and ready to go.
+A production-ready fullstack starter. Clone it, rename things, and focus on your business logic — the infrastructure is already wired. Ships with a Go + Gin backend, Next.js 16 frontend, PostgreSQL, Docker Compose, hot reload, integration testing, and a full agentic development setup for AI coding assistants.
 
 ## Table of Contents
 
@@ -14,19 +14,21 @@ A production-ready fullstack template to skip the boilerplate and focus on build
 - [Environment Variables](#environment-variables)
 - [Development](#development)
 - [Testing](#testing)
+- [Working with AI Agents](#working-with-ai-agents)
 - [Contributing](#contributing)
 - [License](#license)
 
 ## Features
 
 - **Go backend** with Gin, structured into clean `cmd/` and `internal/` layers
-- **Next.js frontend** with React 19, TypeScript, and Tailwind CSS 4
+- **Next.js 16 frontend** with React 19, TypeScript, and Tailwind CSS 4
 - **PostgreSQL** database managed via Docker Compose
 - **Hot reload** on both frontend (`next dev`) and backend ([Air](https://github.com/air-verse/air))
 - **Integration tests** using [Testcontainers](https://testcontainers.com/) — no mocks, real DB
 - **CORS** pre-configured between frontend and backend
 - **`.env` support** via `godotenv`
 - **Makefile** for common backend tasks
+- **Agentic infrastructure** — AGENTS.md, CLAUDE.md, topic docs, subagents, hooks, and slash commands ready out of the box
 
 ## Tech Stack
 
@@ -36,15 +38,13 @@ A production-ready fullstack template to skip the boilerplate and focus on build
 | Styling   | Tailwind CSS 4                      |
 | Backend   | Go, Gin                             |
 | Database  | PostgreSQL 16 (via Docker)          |
-| ORM/DB    | pgx v5 (standard library style)     |
+| DB Driver | pgx v5 (standard library style)     |
 | Dev Tools | Air (hot reload), pnpm, Docker      |
 | Testing   | Go test, Testcontainers             |
 
 ## Getting Started
 
 ### Prerequisites
-
-Make sure you have the following installed:
 
 - [Go 1.21+](https://go.dev/dl/)
 - [Node.js 20+](https://nodejs.org/) and [pnpm](https://pnpm.io/installation)
@@ -53,7 +53,6 @@ Make sure you have the following installed:
 ### Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/your-username/fullstack-template.git
 cd fullstack-template
 ```
@@ -78,35 +77,39 @@ pnpm install
 **1. Start the database:**
 
 ```bash
-cd backend
-make docker-run
+cd backend && make docker-run
 ```
 
-**2. Start the backend** (in a new terminal):
+**2. Start the backend** (new terminal):
 
 ```bash
-cd backend
-make watch       # hot reload via Air
-# or: make run  # run once, no reload
+cd backend && make watch   # hot reload via Air
+# or: make run             # run once, no reload
 ```
 
-**3. Start the frontend** (in a new terminal):
+**3. Start the frontend** (new terminal):
 
 ```bash
-cd frontend
-pnpm dev
+cd frontend && pnpm dev
 ```
 
-The frontend is available at `http://localhost:3000` and the backend API at `http://localhost:8080`.
+Frontend: `http://localhost:3000` — Backend API: `http://localhost:8080`
 
 ## Project Structure
 
 ```
 fullstack-template/
+├── AGENTS.md                    # AI agent instructions (all agents)
+├── CLAUDE.md                    # Claude Code workflow and conventions
+├── .claude/
+│   ├── agents/                  # Specialized Claude subagents
+│   ├── commands/                # Custom slash commands
+│   ├── hooks/                   # Auto-format + guard hooks
+│   └── settings.json            # Hook configuration
 ├── backend/
-│   ├── cmd/
-│   │   └── api/
-│   │       └── main.go          # Entry point
+│   ├── AGENTS.md                # Backend agent instructions
+│   ├── docs/                    # Topic docs: database, routing, testing, errors, env
+│   ├── cmd/api/main.go          # Entry point
 │   ├── internal/
 │   │   ├── database/
 │   │   │   ├── database.go      # DB connection + queries
@@ -114,12 +117,13 @@ fullstack-template/
 │   │   └── server/
 │   │       ├── server.go        # HTTP server setup
 │   │       └── routes.go        # Route definitions
-│   ├── .air.toml                # Air hot-reload config
-│   ├── .env                     # Environment variables (do not commit secrets)
-│   ├── docker-compose.yml       # PostgreSQL service
-│   ├── go.mod
+│   ├── .air.toml
+│   ├── .env
+│   ├── docker-compose.yml
 │   └── Makefile
 └── frontend/
+    ├── AGENTS.md                # Frontend agent instructions
+    ├── docs/                    # Topic docs: routing, data-fetching, styling, components
     ├── app/
     │   ├── layout.tsx
     │   ├── page.tsx
@@ -134,16 +138,16 @@ fullstack-template/
 
 Copy `backend/.env` and fill in your values. Never commit secrets to source control.
 
-| Variable               | Description                  | Default      |
-|------------------------|------------------------------|--------------|
-| `PORT`                 | Backend server port          | `8080`       |
-| `APP_ENV`              | Environment (`local`/`prod`) | `local`      |
-| `BLUEPRINT_DB_HOST`    | Postgres host                | `localhost`  |
-| `BLUEPRINT_DB_PORT`    | Postgres port                | `5432`       |
-| `BLUEPRINT_DB_DATABASE`| Database name                | `blueprint`  |
-| `BLUEPRINT_DB_USERNAME`| Database user                | —            |
-| `BLUEPRINT_DB_PASSWORD`| Database password            | —            |
-| `BLUEPRINT_DB_SCHEMA`  | Postgres schema              | `public`     |
+| Variable                | Description                  | Default     |
+|-------------------------|------------------------------|-------------|
+| `PORT`                  | Backend server port          | `8080`      |
+| `APP_ENV`               | Environment (`local`/`prod`) | `local`     |
+| `BLUEPRINT_DB_HOST`     | Postgres host                | `localhost` |
+| `BLUEPRINT_DB_PORT`     | Postgres port                | `5432`      |
+| `BLUEPRINT_DB_DATABASE` | Database name                | `blueprint` |
+| `BLUEPRINT_DB_USERNAME` | Database user                | —           |
+| `BLUEPRINT_DB_PASSWORD` | Database password            | —           |
+| `BLUEPRINT_DB_SCHEMA`   | Postgres schema              | `public`    |
 
 ## Development
 
@@ -171,7 +175,7 @@ pnpm lint    # run ESLint
 
 ## Testing
 
-Backend tests use [Testcontainers](https://testcontainers.com/) to spin up a real PostgreSQL instance per test run — no mocking the database layer.
+Backend tests use [Testcontainers](https://testcontainers.com/) to spin up a real PostgreSQL instance — no mocking the database layer.
 
 ```bash
 cd backend
@@ -180,6 +184,39 @@ make itest   # integration tests only
 ```
 
 Docker must be running for integration tests.
+
+## Working with AI Agents
+
+This template ships with a complete agentic development setup so AI assistants have the context they need to work on your project accurately and consistently.
+
+### For any AI coding agent
+
+A layered `AGENTS.md` system follows the [AGENTS.md open standard](https://agents.md). The closest file to the code you are editing takes precedence:
+
+| File | Covers |
+|---|---|
+| [`AGENTS.md`](AGENTS.md) | Project overview, setup, cross-cutting conventions, security |
+| [`backend/AGENTS.md`](backend/AGENTS.md) | Go commands, project structure, links to topic docs |
+| [`frontend/AGENTS.md`](frontend/AGENTS.md) | pnpm commands, Next.js conventions, links to topic docs |
+
+Topic-specific documentation lives in `backend/docs/` and `frontend/docs/`. Each file is kept in sync with the source code it describes and includes `last_verified` metadata so agents can detect when it may be stale.
+
+### For Claude Code
+
+Additional infrastructure in `.claude/` provides a deeper integration:
+
+| Path | Purpose |
+|---|---|
+| [`CLAUDE.md`](CLAUDE.md) | Feature development workflow, all conventions |
+| `.claude/agents/` | Specialized subagents: `backend`, `frontend`, `reviewer`, `db-explorer`, `docs` |
+| `.claude/commands/` | Slash commands: `/project:implement`, `/project:check`, `/project:test`, `/project:new-route` |
+| `.claude/hooks/` | Auto-formats Go and TypeScript files on save; blocks dangerous commands |
+
+The recommended workflow for any implementation:
+
+1. Check the relevant topic doc in `backend/docs/` or `frontend/docs/` before writing code
+2. Implement against documented patterns rather than general training data
+3. Update the doc file after implementation so the next agent session starts with accurate context
 
 ## Contributing
 

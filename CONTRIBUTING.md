@@ -10,6 +10,7 @@ Thank you for your interest in contributing! This document covers how to report 
   - [Suggesting Features](#suggesting-features)
   - [Submitting Pull Requests](#submitting-pull-requests)
 - [Development Setup](#development-setup)
+- [Keeping Documentation Current](#keeping-documentation-current)
 - [Style Guidelines](#style-guidelines)
 - [Commit Messages](#commit-messages)
 
@@ -92,6 +93,33 @@ cd backend && make watch
 # Frontend (hot reload)
 cd frontend && pnpm dev
 ```
+
+## Keeping Documentation Current
+
+This project uses topic-based documentation in `backend/docs/` and `frontend/docs/` to give AI coding agents accurate, up-to-date context. When your changes affect how the project works, update the relevant doc alongside your code — not in a separate PR.
+
+### What to update
+
+| If you change… | Update this doc |
+|---|---|
+| DB queries, connection setup, or the `Service` interface | `backend/docs/database.md` |
+| Routes, handlers, or CORS config | `backend/docs/routing.md` |
+| Test setup or testing patterns | `backend/docs/testing.md` |
+| Error handling conventions | `backend/docs/error-handling.md` |
+| Environment variables | `backend/docs/environment.md` |
+| App Router structure or route files | `frontend/docs/routing.md` |
+| Data fetching or Server Actions | `frontend/docs/data-fetching.md` |
+| Tailwind or CSS conventions | `frontend/docs/styling.md` |
+| Component patterns or TypeScript conventions | `frontend/docs/components.md` |
+
+### How to update a doc
+
+1. Edit the relevant file in `backend/docs/` or `frontend/docs/`.
+2. Update the `last_verified` date in the frontmatter to today's date.
+3. Update the `sources` list if you added or removed source files.
+4. If you introduce a new topic that isn't covered, create a new doc file and add it to the relevant `_index.md`.
+
+The `AGENTS.md` files at the root, `backend/`, and `frontend/` are entry points for AI agents — update them if you change project-level setup commands, tooling, or structure.
 
 ## Style Guidelines
 

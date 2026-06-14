@@ -2,7 +2,8 @@
 topic: testing
 last_verified: 2026-06-14
 sources:
-  - internal/database/database_test.go
+  - internal/repository/postgres/health_repository_test.go
+  - internal/handler/hello_handler_test.go
 ---
 
 # Testing
@@ -11,23 +12,29 @@ sources:
 **No mocks for the database.** All DB tests run against a real PostgreSQL instance spun up by Testcontainers. This catches schema mismatches, query errors, and type coercion issues that mocks hide.
 
 ## Testcontainers setup
-`mustStartPostgresContainer()` starts a `postgres:latest` container and sets the package-level connection variables (`host`, `port`, `database`, `username`, `password`) so `New()` connects to the test container.
+`mustStartPostgresContainer()` starts a `postgres:latest` container, calls `NewPostgresDB(cfg)` with the container's mapped host/port, and assigns the result to the package-level `var testDB *sql.DB`.
 
 ```go
+var testDB *sql.DB
+
 func mustStartPostgresContainer() (func(context.Context, ...testcontainers.TerminateOption) error, error) {
-    dbContainer, err := postgres.Run(
+    container, err := tcpostgres.Run(
         context.Background(),
         "postgres:latest",
-        postgres.WithDatabase("database"),
-        postgres.WithUsername("user"),
-        postgres.WithPassword("password"),
+        tcpostgres.WithDatabase("database"),
+        tcpostgres.WithUsername("user"),
+        tcpostgres.WithPassword("password"),
         testcontainers.WithWaitStrategy(
             wait.ForLog("database system is ready to accept connections").
                 WithOccurrence(2).
-                WithStartupTimeout(5*time.Second)),
+                WithStartupTimeout(5*time.Second),
+        ),
     )
-    // sets host, port, database, username, password package vars
-    // returns dbContainer.Terminate
+    // resolves host and mapped port from container
+    cfg := DBConfig{Host: dbHost, Port: dbPort.Port(), ...}
+    db, err := NewPostgresDB(cfg)
+    testDB = db
+    return container.Terminate, nil
 }
 ```
 
@@ -49,23 +56,42 @@ func TestMain(m *testing.M) {
 
 ## Package placement
 Tests live in the **same package** as the code under test.
-- DB tests: `package database` in `internal/database/`
-- Server/handler tests (when added): `package server` in `internal/server/`
+- Repository tests: `package postgres` in `internal/repository/postgres/`
+- Handler tests: `package handler` in `internal/handler/`
+
+## Handler unit tests
+Handlers that have no DB dependency (e.g. `HelloWorldHandler`) use `httptest` without Testcontainers:
+
+```go
+func TestHelloWorldHandler(t *testing.T) {
+    h := &Handler{}
+    r := gin.New()
+    r.GET("/", h.HelloWorldHandler)
+
+    req, _ := http.NewRequest("GET", "/", nil)
+    rr := httptest.NewRecorder()
+    r.ServeHTTP(rr, req)
+
+    if rr.Code != http.StatusOK { ... }
+}
+```
 
 ## Running tests
 ```bash
 make test    # unit + integration (requires Docker)
-make itest   # integration only
-go test ./internal/database -v -run TestHealth  # single test
+make itest   # integration only — runs ./internal/repository/postgres/...
+go test ./internal/repository/postgres/... -v -run TestHealth  # single test
 ```
 
 ## Adding a new integration test
-1. Add a `TestXxx(t *testing.T)` function in `database_test.go` (or a new `_test.go` file in the same package).
-2. Call `New()` to get the service — it will connect to the Testcontainers instance.
-3. Use table-driven tests for multiple cases:
+1. Add a `TestXxx(t *testing.T)` function in a `_test.go` file under `internal/repository/postgres/` (same package).
+2. Construct the repository under test using `testDB`: e.g. `repo := NewHealthRepository(testDB)`.
+3. Call repository methods directly and assert on the results.
+4. Use table-driven tests for multiple cases:
+
 ```go
 func TestGetUser(t *testing.T) {
-    srv := New()
+    repo := NewUserRepository(testDB)
     tests := []struct {
         name    string
         id      int64
@@ -76,7 +102,7 @@ func TestGetUser(t *testing.T) {
     }
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            _, err := srv.GetUser(context.Background(), tt.id)
+            _, err := repo.GetUser(context.Background(), tt.id)
             if (err != nil) != tt.wantErr {
                 t.Errorf("GetUser() error = %v, wantErr %v", err, tt.wantErr)
             }
@@ -84,6 +110,9 @@ func TestGetUser(t *testing.T) {
     }
 }
 ```
+
+## Test ordering note
+`internal/repository/postgres/health_repository_test.go` relies on test ordering: `TestNew` → `TestHealth` → `TestClose`. `TestClose` closes `testDB`; any test added after it that uses `testDB` will fail.
 
 ## Requirements
 - Docker must be running for any integration test.

@@ -2,8 +2,8 @@
 topic: error-handling
 last_verified: 2026-06-14
 sources:
-  - internal/database/database.go
-  - internal/server/routes.go
+  - internal/repository/postgres/health_repository.go
+  - internal/handler/health_handler.go
   - cmd/api/main.go
 ---
 
@@ -11,22 +11,50 @@ sources:
 
 ## General rule
 Return errors up the call stack. Callers decide how to handle them.
-Never use `log.Fatal` or `os.Exit` inside `internal/` except for the two documented exceptions below.
+Never use `log.Fatal` or `os.Exit` inside `internal/`.
 
-## Documented exceptions (intentional)
+## Documented exception (intentional)
 | Location | Call | Reason |
 |---|---|---|
-| `database.go: New()` | `log.Fatal(err)` | Startup failure — if the DB can't connect at boot, the process should not continue |
-| `database.go: Health()` | `log.Fatalf(...)` | Unrecoverable DB loss detected during health check — intentional termination |
+| `cmd/api/main.go: main()` | `log.Fatalf(...)` | `server.NewServer()` returned an error — process cannot start |
 
-These are startup/health-check paths only. All other paths in `internal/` return errors.
+This is the only permitted `log.Fatal` call and it lives in `cmd/`, not `internal/`.
 
-## Handler error responses
-In Gin handlers, map errors to HTTP status codes explicitly:
+## Repository errors
+Repository methods return `(Result, error)`. On failure, wrap with context using `fmt.Errorf`:
 
 ```go
-func (s *Server) getItemHandler(c *gin.Context) {
-    item, err := s.db.GetItem(c.Request.Context(), id)
+func (r *HealthRepository) Health(ctx context.Context) (domain.HealthStats, error) {
+    if err := r.db.PingContext(pingCtx); err != nil {
+        stats["status"] = "down"
+        stats["error"] = fmt.Sprintf("db down: %v", err)
+        return stats, fmt.Errorf("postgres: health ping: %w", err)
+    }
+    // ...
+    return stats, nil
+}
+```
+
+## Handler error responses
+Handlers call use cases, check errors, and map them to HTTP status codes. The health handler returns 503 when the DB is unreachable:
+
+```go
+func (h *Handler) healthHandler(c *gin.Context) {
+    stats, err := h.healthUC.GetHealth(c.Request.Context())
+    if err != nil {
+        log.Printf("health check failed: %v", err)
+        c.JSON(http.StatusServiceUnavailable, stats)
+        return
+    }
+    c.JSON(http.StatusOK, stats)
+}
+```
+
+For general handlers, map errors to status codes explicitly:
+
+```go
+func (h *Handler) getItemHandler(c *gin.Context) {
+    item, err := h.itemUC.GetItem(c.Request.Context(), id)
     if err != nil {
         if errors.Is(err, sql.ErrNoRows) {
             c.JSON(http.StatusNotFound, gin.H{"error": "not found"})

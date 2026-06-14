@@ -58,12 +58,24 @@ Each doc file has `last_verified` and `sources` frontmatter. The `docs` agent ma
 ## Project layout
 ```
 backend/
-  cmd/api/main.go               # entry point — wiring only, no logic
+  cmd/api/main.go               # entry point — wires layers, graceful shutdown
   internal/
-    server/server.go            # Server struct, NewServer()
-    server/routes.go            # RegisterRoutes(), all handlers as *Server methods
-    database/database.go        # Service interface + implementation, all queries
-    database/database_test.go   # integration tests (Testcontainers)
+    domain/                     # Layer 1: entities + repository interfaces (no external deps)
+      health.go                 # HealthStats type
+    usecase/                    # Layer 2: application logic
+      health_usecase.go         # HealthReader interface, HealthUseCase interface + impl
+    repository/postgres/        # Layer 3: DB implementations
+      db.go                     # DBConfig, NewPostgresDB() → *sql.DB
+      health_repository.go      # implements HealthReader
+      health_repository_test.go # integration tests (Testcontainers)
+    handler/                    # Layer 3: HTTP adapters
+      handler.go                # Handler struct, NewHandler()
+      routes.go                 # RegisterRoutes() on *Handler
+      hello_handler.go          # HelloWorldHandler
+      health_handler.go         # healthHandler (503 when DB down)
+      hello_handler_test.go     # httptest unit tests
+    server/
+      server.go                 # NewServer() — wires all layers, returns *http.Server
   docker-compose.yml
   .env                          # never commit secrets
   Makefile
@@ -78,10 +90,11 @@ mobile/
   CLAUDE.md → AGENTS.md         # mobile-specific rules (read before writing Kotlin/Compose)
 ```
 
-## Go conventions
-- Business logic in `internal/` only. `cmd/` just wires things together.
-- New query → add to `Service` interface, implement on `service`, test in `database_test.go`.
-- New route → register in `RegisterRoutes()`, handler as method on `*Server`.
+## Go conventions (Clean Architecture)
+- Follow the dependency rule: `domain` ← `usecase` ← `handler`/`repository` ← `server` ← `cmd`.
+- New feature → add entity to `domain/`, interface to `usecase/`, implementation to `repository/postgres/`, handler to `handler/`, wire in `server/server.go`.
+- New route → add use case interface + impl in `usecase/`, handler method on `*Handler`, register in `handler/routes.go`, wire in `server/server.go`.
+- Repository interfaces live in `usecase/` (the layer that depends on them), not in `repository/`.
 - Return errors up the stack. Never `log.Fatal` or `os.Exit` inside `internal/`.
 - Run `go vet ./...` before committing.
 
@@ -102,8 +115,9 @@ mobile/
 
 ## Testing — non-negotiable
 - **Never mock the database.** Always use Testcontainers.
-- Follow the `TestMain` + `mustStartPostgresContainer()` pattern in `database_test.go`.
-- Tests live in the same package as the code (`package database`, `package server`).
+- Follow the `TestMain` + `mustStartPostgresContainer()` pattern in `repository/postgres/health_repository_test.go`.
+- DB integration tests live in `internal/repository/postgres/` (`package postgres`).
+- Handler unit tests live in `internal/handler/` and may use mock use cases — that is not mocking the database.
 - Docker must be running for integration tests.
 
 ## Hard rules (hooks enforce some of these)

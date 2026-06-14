@@ -34,6 +34,11 @@ clean:
 	@echo "Cleaning..."
 	@rm -f main
 
+# Generate Swagger docs (requires annotations to be up to date)
+swagger:
+	@echo "Generating Swagger docs..."
+	@go run github.com/swaggo/swag/cmd/swag@v1.16.6 init -g cmd/api/main.go -o docs/swagger
+
 # Live Reload
 watch:
 	@powershell -ExecutionPolicy Bypass -Command "if (Get-Command air -ErrorAction SilentlyContinue) { \
@@ -72,6 +77,6 @@ migrate-version:
 migrate-create:
 	@go run ./cmd/migrate create $(name)
 
-.PHONY: all build run test clean watch docker-run docker-down itest \
+.PHONY: all build run test clean watch docker-run docker-down itest swagger \
         migrate-up migrate-up-one migrate-down migrate-down-to migrate-reset \
         migrate-status migrate-version migrate-create

@@ -33,6 +33,12 @@ func gracefulShutdown(apiServer *http.Server, done chan bool) {
 	done <- true
 }
 
+// @title			Blueprint API
+// @version		1.0
+// @description	Fullstack template REST API.
+//
+// @host		localhost:8080
+// @BasePath	/
 func main() {
 	// Signal-aware context so SIGINT/SIGTERM cancels bootstrap probes immediately.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -45,6 +51,7 @@ func main() {
 	}
 
 	srv := server.NewServer(app)
+	slog.Info("API docs", "url", fmt.Sprintf("http://localhost%s/swagger/index.html", srv.Addr))
 
 	done := make(chan bool, 1)
 	go gracefulShutdown(srv, done)

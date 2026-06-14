@@ -172,7 +172,7 @@ Copy `backend/.env` and fill in your values. Never commit secrets to source cont
 | Variable                | Description                  | Default     |
 |-------------------------|------------------------------|-------------|
 | `PORT`                  | Backend server port          | `8080`      |
-| `APP_ENV`               | Environment (`local`/`prod`) | `local`     |
+| `ENV`                   | Environment (`local`/`staging`/`production`) | `local` |
 | `BLUEPRINT_DB_HOST`     | Postgres host                | `localhost` |
 | `BLUEPRINT_DB_PORT`     | Postgres port                | `5432`      |
 | `BLUEPRINT_DB_DATABASE` | Database name                | `blueprint` |

@@ -114,6 +114,22 @@ mobile/
   CLAUDE.md → AGENTS.md         # mobile-specific rules (read before writing Kotlin/Compose)
 ```
 
+## Swagger / OpenAPI
+
+Swagger UI is served at `http://localhost:8080/swagger/index.html`. Docs are generated from swaggo annotations and committed to `backend/docs/swagger/`.
+
+**Every new route must include swaggo annotations.** Run `make swagger` from `backend/` after adding or changing any handler to regenerate the docs package and commit the updated files.
+
+Annotation rules:
+- API-level metadata (`@title`, `@version`, `@host`, `@BasePath`) lives in `cmd/api/main.go` above `main()`.
+- Handler-level annotations go immediately above each handler method: `@Summary`, `@Tags`, `@Produce`, `@Param` (if applicable), `@Success`, `@Failure`, `@Router`.
+- If a handler returns a `domain.*` type, add a `type Alias = domain.Type` line to `internal/transport/handlers/swagger_types.go` and reference it as `{object} Alias` in the annotation — swaggo cannot traverse the `usecase → domain` import chain automatically.
+- See `backend/docs/swagger.md` for the full annotation reference and examples.
+
+```bash
+cd backend && make swagger   # regenerate docs/swagger/ after annotation changes
+```
+
 ## Go conventions (Clean Architecture)
 - Follow the dependency rule: `domain` ← `usecase` ← `transport`/`infrastructure` ← `server` ← `cmd`.
 - New feature → add entity to `domain/`, interface to `usecase/`, implementation to `infrastructure/database/postgres/`, handler to `transport/handlers/`, wire in `server/server.go`.

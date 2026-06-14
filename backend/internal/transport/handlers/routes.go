@@ -5,14 +5,23 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 
+	_ "backend/docs/swagger"
 	"backend/internal/transport/middleware"
 )
 
 // RegisterRoutes creates the Gin engine, applies middleware, and registers all routes.
 func (h *Handler) RegisterRoutes() http.Handler {
 	r := gin.New()
-	r.Use(gin.Recovery(), middleware.Logger())
+
+	// Use Gin's colorful logger locally; structured slog logger in staging/production.
+	if gin.Mode() == gin.DebugMode {
+		r.Use(gin.Recovery(), gin.Logger())
+	} else {
+		r.Use(gin.Recovery(), middleware.Logger())
+	}
 
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000"},
@@ -23,6 +32,8 @@ func (h *Handler) RegisterRoutes() http.Handler {
 
 	r.GET("/", h.HelloWorldHandler)
 	r.GET("/health", h.HealthHandler)
+
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	return r
 }

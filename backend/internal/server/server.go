@@ -22,6 +22,10 @@ func NewServer(app *bootstrap.App) *http.Server {
 		gin.SetMode(gin.DebugMode)
 	}
 
+	// Suppress all [GIN-debug] output (banner + route table); docs URL is logged in main instead.
+	gin.DebugPrintFunc = func(_ string, _ ...any) {}
+	gin.DebugPrintRouteFunc = func(_, _, _ string, _ int) {}
+
 	healthRepo := postgres.NewHealthRepository(app.DB)
 	healthUC := usecase.NewHealthUseCase(healthRepo)
 	h := handlers.NewHandler(healthUC)

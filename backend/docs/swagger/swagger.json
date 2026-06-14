@@ -1,0 +1,97 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Fullstack template REST API.",
+        "title": "Blueprint API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {
+        "/": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "general"
+                ],
+                "summary": "Hello World",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ops"
+                ],
+                "summary": "Health check",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.HealthStats"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.HealthStats"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "handlers.HealthStats": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "idle": {
+                    "type": "integer"
+                },
+                "in_use": {
+                    "type": "integer"
+                },
+                "max_idle_closed": {
+                    "type": "integer"
+                },
+                "max_lifetime_closed": {
+                    "type": "integer"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "open_connections": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "wait_count": {
+                    "type": "integer"
+                },
+                "wait_duration": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

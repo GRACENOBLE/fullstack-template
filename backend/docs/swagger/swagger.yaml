@@ -1,0 +1,63 @@
+basePath: /
+definitions:
+  handlers.HealthStats:
+    properties:
+      error:
+        type: string
+      idle:
+        type: integer
+      in_use:
+        type: integer
+      max_idle_closed:
+        type: integer
+      max_lifetime_closed:
+        type: integer
+      message:
+        type: string
+      open_connections:
+        type: integer
+      status:
+        type: string
+      wait_count:
+        type: integer
+      wait_duration:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Fullstack template REST API.
+  title: Blueprint API
+  version: "1.0"
+paths:
+  /:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Hello World
+      tags:
+      - general
+  /health:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.HealthStats'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.HealthStats'
+      summary: Health check
+      tags:
+      - ops
+swagger: "2.0"

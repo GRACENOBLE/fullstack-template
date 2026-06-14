@@ -27,7 +27,7 @@ test:
 # Integrations Tests for the application
 itest:
 	@echo "Running integration tests..."
-	@go test ./internal/database -v
+	@go test ./internal/repository/postgres/... -v
 
 # Clean the binary
 clean:

@@ -46,7 +46,7 @@ func (s *Server) myHandler(c *gin.Context) {
 
 ## CORS configuration
 Pre-configured in `RegisterRoutes()` via `github.com/gin-contrib/cors`.
-Current allowed origin: `http://localhost:5173` — **update to `http://localhost:3000`** for this project's Next.js frontend.
+Current allowed origin: `http://localhost:5173` — **update to `http://localhost:3000`** for this project's Next.js web app.
 Allowed methods: GET, POST, PUT, DELETE, OPTIONS, PATCH.
 `AllowCredentials: true` — cookies and auth headers pass through.
 

@@ -1,6 +1,6 @@
-# Frontend Docs Index
+# Web Docs Index
 
-Topic-based documentation for the Next.js frontend. Each file covers one concern.
+Topic-based documentation for the Next.js web app. Each file covers one concern.
 The `docs` agent reads this index first to locate the right file.
 
 | Topic | File | Source files covered |

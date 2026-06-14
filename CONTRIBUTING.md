@@ -66,8 +66,8 @@ Feature suggestions are welcome. Open an issue with:
    # Backend
    cd backend && make test
 
-   # Frontend
-   cd frontend && pnpm lint && pnpm build
+   # Web
+   cd web && pnpm lint && pnpm build
 
    # Mobile
    cd mobile && ./gradlew lint && ./gradlew test
@@ -93,8 +93,8 @@ cd backend && make docker-run
 # Backend (hot reload)
 cd backend && make watch
 
-# Frontend (hot reload)
-cd frontend && pnpm dev
+# Web (hot reload)
+cd web && pnpm dev
 
 # Mobile — open mobile/ in Android Studio, or build via Gradle
 cd mobile && ./gradlew assembleDebug
@@ -102,7 +102,7 @@ cd mobile && ./gradlew assembleDebug
 
 ## Keeping Documentation Current
 
-This project uses topic-based documentation in `backend/docs/` and `frontend/docs/` to give AI coding agents accurate, up-to-date context. When your changes affect how the project works, update the relevant doc alongside your code — not in a separate PR.
+This project uses topic-based documentation in `backend/docs/` and `web/docs/` to give AI coding agents accurate, up-to-date context. When your changes affect how the project works, update the relevant doc alongside your code — not in a separate PR.
 
 ### What to update
 
@@ -113,22 +113,22 @@ This project uses topic-based documentation in `backend/docs/` and `frontend/doc
 | Test setup or testing patterns (backend) | `backend/docs/testing.md` |
 | Error handling conventions | `backend/docs/error-handling.md` |
 | Environment variables | `backend/docs/environment.md` |
-| App Router structure or route files | `frontend/docs/routing.md` |
-| Data fetching or Server Actions | `frontend/docs/data-fetching.md` |
-| Tailwind or CSS conventions | `frontend/docs/styling.md` |
-| Component patterns or TypeScript conventions | `frontend/docs/components.md` |
+| App Router structure or route files | `web/docs/routing.md` |
+| Data fetching or Server Actions | `web/docs/data-fetching.md` |
+| Tailwind or CSS conventions | `web/docs/styling.md` |
+| Component patterns or TypeScript conventions | `web/docs/components.md` |
 | Composable conventions, theme, or Material3 usage | `mobile/docs/compose-conventions.md` |
 | Activity setup, lifecycle, or ViewModel pattern | `mobile/docs/architecture.md` |
 | Test setup or testing patterns (mobile) | `mobile/docs/testing.md` |
 
 ### How to update a doc
 
-1. Edit the relevant file in `backend/docs/` or `frontend/docs/`.
+1. Edit the relevant file in `backend/docs/` or `web/docs/`.
 2. Update the `last_verified` date in the frontmatter to today's date.
 3. Update the `sources` list if you added or removed source files.
 4. If you introduce a new topic that isn't covered, create a new doc file and add it to the relevant `_index.md`.
 
-The `AGENTS.md` files at the root, `backend/`, `frontend/`, and `mobile/` are entry points for AI agents — update them if you change project-level setup commands, tooling, or structure.
+The `AGENTS.md` files at the root, `backend/`, `web/`, and `mobile/` are entry points for AI agents — update them if you change project-level setup commands, tooling, or structure.
 
 ## Style Guidelines
 
@@ -139,7 +139,7 @@ The `AGENTS.md` files at the root, `backend/`, `frontend/`, and `mobile/` are en
 - No exported symbols without a doc comment.
 - Use table-driven tests.
 
-### TypeScript/React (frontend)
+### TypeScript/React (web)
 
 - All new files should be TypeScript (`.ts` / `.tsx`), not JavaScript.
 - Follow the existing ESLint configuration.
@@ -185,7 +185,7 @@ Examples:
 
 ```
 feat(backend): add JWT authentication middleware
-fix(frontend): correct layout shift on mobile viewport
+fix(web): correct layout shift on mobile viewport
 feat(mobile): add profile screen with Material3 card layout
 docs: add environment variable table to README
 ```

@@ -1,10 +1,10 @@
 # AGENTS.md
 
-Fullstack project — Go + Gin backend, Next.js 16 + React 19 frontend, PostgreSQL, Android mobile (Kotlin + Compose).
+Fullstack project — Go + Gin backend, Next.js 16 + React 19 web app, PostgreSQL, Android mobile (Kotlin + Compose).
 
 Each layer has its own `AGENTS.md` and `docs/` folder. Read the file closest to what you are editing:
 - `backend/AGENTS.md` + `backend/docs/` — Go API
-- `frontend/AGENTS.md` + `frontend/docs/` — Next.js UI
+- `web/AGENTS.md` + `web/docs/` — Next.js UI
 - `mobile/AGENTS.md` + `mobile/docs/` — Android app
 
 Claude Code users: see `CLAUDE.md` for the feature development workflow and subagent definitions.
@@ -22,8 +22,8 @@ cd backend && make docker-run
 # 2. Backend API (hot reload, separate terminal)
 cd backend && make watch        # → http://localhost:8080
 
-# 3. Frontend (separate terminal)
-cd frontend && pnpm install && pnpm dev   # → http://localhost:3000
+# 3. Web app (separate terminal)
+cd web && pnpm install && pnpm dev   # → http://localhost:3000
 
 # 4. Mobile — open mobile/ in Android Studio and run on emulator/device
 cd mobile && ./gradlew assembleDebug      # build only
@@ -39,9 +39,9 @@ cd mobile && ./gradlew installDebug       # build and install on connected devic
 cd backend && make test         # unit + integration
 cd backend && make itest        # integration only
 
-# Frontend
-cd frontend && pnpm lint
-cd frontend && pnpm build
+# Web
+cd web && pnpm lint
+cd web && pnpm build
 
 # Mobile
 cd mobile && ./gradlew lint
@@ -93,6 +93,6 @@ All backend DB tests use **Testcontainers** (real PostgreSQL). Never mock the da
 ## PR instructions
 
 - Branch from `main` — no direct pushes to `main`
-- Run `make test` (backend), `pnpm lint && pnpm build` (frontend), and `./gradlew lint && ./gradlew test` (mobile) before opening a PR
+- Run `make test` (backend), `pnpm lint && pnpm build` (web), and `./gradlew lint && ./gradlew test` (mobile) before opening a PR
 - One logical change per PR
 - PR title: concise description of what changed, not implementation details

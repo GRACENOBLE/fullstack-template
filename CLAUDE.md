@@ -13,11 +13,11 @@
 ```bash
 cd backend && make docker-run   # start Postgres
 cd backend && make watch        # backend dev with hot reload (Air) → :8080
-cd frontend && pnpm dev         # frontend dev → :3000
+cd web && pnpm dev              # web dev → :3000
 
 cd backend && make test         # all tests
 cd backend && make itest        # integration tests only (requires Docker)
-cd frontend && pnpm lint && pnpm build
+cd web && pnpm lint && pnpm build
 
 cd mobile && ./gradlew assembleDebug          # build Android APK
 cd mobile && ./gradlew lint && ./gradlew test # mobile quality gate
@@ -27,7 +27,7 @@ cd mobile && ./gradlew connectedAndroidTest   # instrumented tests (emulator/dev
 ## Feature development workflow — always follow this
 1. **Check docs first** — delegate to `docs` agent: find relevant topic docs, verify they match the current code
 2. **Fix stale docs** — if docs diverge from code, update docs before implementing
-3. **Implement** — delegate to `backend` or `frontend` agent, passing the relevant doc content as context
+3. **Implement** — delegate to `backend` or `web` agent, passing the relevant doc content as context
 4. **Update docs** — delegate to `docs` agent: update `last_verified`, add new topics if introduced
 5. **Quality gate** — run `/project:check` before declaring done
 
@@ -36,14 +36,14 @@ Use `/project:implement` to run this workflow end-to-end.
 ## Documentation locations
 ```
 backend/docs/    # database, routing, testing, error-handling, environment
-frontend/docs/   # routing, data-fetching, styling, components
+web/docs/        # routing, data-fetching, styling, components
 mobile/docs/     # compose-conventions, architecture, testing
 ```
 Each doc file has `last_verified` and `sources` frontmatter. The `docs` agent maintains these.
 
 ## Available subagents — delegate to these
 - **`backend`** — Go/Gin/PostgreSQL tasks
-- **`frontend`** — Next.js/React/TypeScript tasks
+- **`web`** — Next.js/React/TypeScript tasks
 - **`mobile`** — Android/Kotlin/Jetpack Compose tasks
 - **`reviewer`** — pre-commit code review across all layers
 - **`db-explorer`** — read-only DB schema and query analysis
@@ -67,9 +67,9 @@ backend/
   docker-compose.yml
   .env                          # never commit secrets
   Makefile
-frontend/
+web/
   app/                          # Next.js App Router
-  CLAUDE.md → AGENTS.md         # frontend-specific rules (read before writing Next.js)
+  CLAUDE.md → AGENTS.md         # web-specific rules (read before writing Next.js)
 mobile/
   app/src/main/java/com/company/template/
     MainActivity.kt             # single entry point, Compose root

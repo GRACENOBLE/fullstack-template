@@ -6,9 +6,9 @@ backend:
   - changed-files:
     - any-glob-to-any-file: ["backend/**"]
 
-frontend:
+web:
   - changed-files:
-    - any-glob-to-any-file: ["frontend/**"]
+    - any-glob-to-any-file: ["web/**"]
 
 mobile:
   - changed-files:
@@ -19,7 +19,7 @@ documentation:
     - any-glob-to-any-file:
       - "**/*.md"
       - "backend/docs/**"
-      - "frontend/docs/**"
+      - "web/docs/**"
       - "mobile/docs/**"
 
 ci:
@@ -31,8 +31,8 @@ dependencies:
     - any-glob-to-any-file:
       - "backend/go.mod"
       - "backend/go.sum"
-      - "frontend/package.json"
-      - "frontend/pnpm-lock.yaml"
+      - "web/package.json"
+      - "web/pnpm-lock.yaml"
       - "mobile/gradle/libs.versions.toml"
       - "mobile/build.gradle.kts"
       - "mobile/app/build.gradle.kts"

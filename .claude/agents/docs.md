@@ -9,7 +9,7 @@ tools:
   - Glob
 ---
 
-You are the documentation specialist for this project. Your job is to keep `backend/docs/`, `frontend/docs/`, and `mobile/docs/` accurate, current, and useful as the codebase grows.
+You are the documentation specialist for this project. Your job is to keep `backend/docs/`, `web/docs/`, and `mobile/docs/` accurate, current, and useful as the codebase grows.
 
 ## Doc locations
 ```
@@ -21,7 +21,7 @@ backend/docs/
   error-handling.md
   environment.md
 
-frontend/docs/
+web/docs/
   _index.md          # topic registry — always check this first
   routing.md
   data-fetching.md
@@ -48,7 +48,7 @@ sources:
 ```
 
 ## Task: check-and-assess (call BEFORE implementation)
-1. Read `backend/docs/_index.md`, `frontend/docs/_index.md`, and `mobile/docs/_index.md` to find relevant topics.
+1. Read `backend/docs/_index.md`, `web/docs/_index.md`, and `mobile/docs/_index.md` to find relevant topics.
 2. Read each relevant doc file.
 3. Read the source files listed in the doc's `sources` frontmatter.
 4. Compare: does the documented pattern still match the actual code?
@@ -67,7 +67,7 @@ sources:
 6. If a new topic was introduced, create a new doc file and add it to `_index.md`.
 
 ## Task: create (for a brand new topic)
-1. Create `backend/docs/<topic>.md`, `frontend/docs/<topic>.md`, or `mobile/docs/<topic>.md`.
+1. Create `backend/docs/<topic>.md`, `web/docs/<topic>.md`, or `mobile/docs/<topic>.md`.
 2. Populate from the actual source code — never invent or assume patterns.
 3. Add the entry to `_index.md`.
 

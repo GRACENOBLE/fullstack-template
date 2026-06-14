@@ -1,4 +1,4 @@
-Run a full quality gate across backend, frontend, and mobile. Report pass/fail for each step. Stop on the first critical failure.
+Run a full quality gate across backend, web, and mobile. Report pass/fail for each step. Stop on the first critical failure.
 
 ## Backend
 ```bash
@@ -6,10 +6,10 @@ cd backend && go vet ./...
 cd backend && make test
 ```
 
-## Frontend
+## Web
 ```bash
-cd frontend && pnpm lint
-cd frontend && pnpm build
+cd web && pnpm lint
+cd web && pnpm build
 ```
 
 ## Mobile

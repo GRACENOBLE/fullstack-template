@@ -1,6 +1,6 @@
 # Fullstack Template
 
-A production-ready fullstack starter. Clone it, rename things, and focus on your business logic — the infrastructure is already wired. Ships with a Go + Gin backend, Next.js 16 frontend, Android mobile app (Kotlin + Compose), PostgreSQL, Docker Compose, hot reload, integration testing, and a full agentic development setup for AI coding assistants.
+A production-ready fullstack starter. Clone it, rename things, and focus on your business logic — the infrastructure is already wired. Ships with a Go + Gin backend, Next.js 16 web app, Android mobile app (Kotlin + Compose), PostgreSQL, Docker Compose, hot reload, integration testing, and a full agentic development setup for AI coding assistants.
 
 ## Table of Contents
 
@@ -21,12 +21,12 @@ A production-ready fullstack starter. Clone it, rename things, and focus on your
 ## Features
 
 - **Go backend** with Gin, structured into clean `cmd/` and `internal/` layers
-- **Next.js 16 frontend** with React 19, TypeScript, and Tailwind CSS 4
+- **Next.js 16 web app** with React 19, TypeScript, and Tailwind CSS 4
 - **Android mobile app** with Kotlin 2.2, Jetpack Compose BOM 2026.02, and Material3
 - **PostgreSQL** database managed via Docker Compose
-- **Hot reload** on both frontend (`next dev`) and backend ([Air](https://github.com/air-verse/air))
+- **Hot reload** on both web (`next dev`) and backend ([Air](https://github.com/air-verse/air))
 - **Integration tests** using [Testcontainers](https://testcontainers.com/) — no mocks, real DB
-- **CORS** pre-configured between frontend and backend
+- **CORS** pre-configured between web and backend
 - **`.env` support** via `godotenv`
 - **Makefile** for common backend tasks
 - **Agentic infrastructure** — AGENTS.md, CLAUDE.md, topic docs, subagents, hooks, and slash commands ready out of the box for all three layers
@@ -35,7 +35,7 @@ A production-ready fullstack starter. Clone it, rename things, and focus on your
 
 | Layer     | Technology                                          |
 |-----------|-----------------------------------------------------|
-| Frontend  | Next.js 16, React 19, TypeScript                    |
+| Web       | Next.js 16, React 19, TypeScript                    |
 | Styling   | Tailwind CSS 4                                      |
 | Backend   | Go, Gin                                             |
 | Database  | PostgreSQL 16 (via Docker)                          |
@@ -68,10 +68,10 @@ cp .env .env.local   # adjust values as needed
 go mod download
 ```
 
-**Frontend:**
+**Web:**
 
 ```bash
-cd frontend
+cd web
 pnpm install
 ```
 
@@ -98,10 +98,10 @@ cd backend && make watch   # hot reload via Air
 # or: make run             # run once, no reload
 ```
 
-**3. Start the frontend** (new terminal):
+**3. Start the web app** (new terminal):
 
 ```bash
-cd frontend && pnpm dev
+cd web && pnpm dev
 ```
 
 **4. Run the mobile app** — connect a device or start an emulator, then:
@@ -112,7 +112,7 @@ cd mobile && ./gradlew installDebug
 
 Or run directly from Android Studio.
 
-Frontend: `http://localhost:3000` — Backend API: `http://localhost:8080`
+Web: `http://localhost:3000` — Backend API: `http://localhost:8080`
 
 ## Project Structure
 
@@ -140,8 +140,8 @@ fullstack-template/
 │   ├── .env
 │   ├── docker-compose.yml
 │   └── Makefile
-├── frontend/
-│   ├── AGENTS.md                # Frontend agent instructions
+├── web/
+│   ├── AGENTS.md                # Web agent instructions
 │   ├── docs/                    # Topic docs: routing, data-fetching, styling, components
 │   ├── app/
 │   │   ├── layout.tsx
@@ -195,7 +195,7 @@ make itest       # run integration tests only
 make clean       # remove compiled binary
 ```
 
-### Frontend commands
+### Web commands
 
 ```bash
 pnpm dev     # start dev server with hot reload
@@ -249,10 +249,10 @@ A layered `AGENTS.md` system follows the [AGENTS.md open standard](https://agent
 |---|---|
 | [`AGENTS.md`](AGENTS.md) | Project overview, setup, cross-cutting conventions, security |
 | [`backend/AGENTS.md`](backend/AGENTS.md) | Go commands, project structure, links to topic docs |
-| [`frontend/AGENTS.md`](frontend/AGENTS.md) | pnpm commands, Next.js conventions, links to topic docs |
+| [`web/AGENTS.md`](web/AGENTS.md) | pnpm commands, Next.js conventions, links to topic docs |
 | [`mobile/AGENTS.md`](mobile/AGENTS.md) | Gradle commands, Android conventions, links to topic docs |
 
-Topic-specific documentation lives in `backend/docs/`, `frontend/docs/`, and `mobile/docs/`. Each file is kept in sync with the source code it describes and includes `last_verified` metadata so agents can detect when it may be stale.
+Topic-specific documentation lives in `backend/docs/`, `web/docs/`, and `mobile/docs/`. Each file is kept in sync with the source code it describes and includes `last_verified` metadata so agents can detect when it may be stale.
 
 ### For Claude Code
 
@@ -261,13 +261,13 @@ Additional infrastructure in `.claude/` provides a deeper integration:
 | Path | Purpose |
 |---|---|
 | [`CLAUDE.md`](CLAUDE.md) | Feature development workflow, all conventions |
-| `.claude/agents/` | Specialized subagents: `backend`, `frontend`, `mobile`, `reviewer`, `db-explorer`, `docs` |
+| `.claude/agents/` | Specialized subagents: `backend`, `web`, `mobile`, `reviewer`, `db-explorer`, `docs` |
 | `.claude/commands/` | Slash commands: `/project:implement`, `/project:check`, `/project:test`, `/project:new-route` |
 | `.claude/hooks/` | Auto-formats Go and TypeScript files on save; blocks dangerous commands |
 
 The recommended workflow for any implementation:
 
-1. Check the relevant topic doc in `backend/docs/`, `frontend/docs/`, or `mobile/docs/` before writing code
+1. Check the relevant topic doc in `backend/docs/`, `web/docs/`, or `mobile/docs/` before writing code
 2. Implement against documented patterns rather than general training data
 3. Update the doc file after implementation so the next agent session starts with accurate context
 

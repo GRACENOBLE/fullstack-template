@@ -1,7 +1,7 @@
 Implement a feature following the Documentation-First workflow. This ensures every implementation is grounded in existing patterns and leaves the docs in a better state than it found them.
 
 ## Required from user before starting
-- Feature description (what it does, which layer — backend / frontend / both)
+- Feature description (what it does, which layer — backend / web / both)
 - Any constraints or decisions already made
 
 ---
@@ -31,7 +31,7 @@ Do not implement against stale documentation. Update docs first.
 ---
 
 ## Step 3 — Implement
-Delegate to the appropriate agent (`backend`, `frontend`, or both).
+Delegate to the appropriate agent (`backend`, `web`, or both).
 
 Pass the relevant doc content as context so the agent implements to the correct patterns — not from training data.
 

@@ -70,4 +70,4 @@ Store in an env var for production: `process.env.NEXT_PUBLIC_API_URL` (client-ac
 - Use `notFound()` from `next/navigation` for 404 cases.
 
 ## Caching (Next.js 16)
-Next.js 16 changes default caching behavior from v14. Check `frontend/node_modules/next/dist/docs/` for the current defaults before assuming cached or uncached behavior.
+Next.js 16 changes default caching behavior from v14. Check `web/node_modules/next/dist/docs/` for the current defaults before assuming cached or uncached behavior.

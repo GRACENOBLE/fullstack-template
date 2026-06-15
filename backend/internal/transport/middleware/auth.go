@@ -25,7 +25,7 @@ func FirebaseAuth(verifier usecase.FirebaseTokenVerifier) gin.HandlerFunc {
 		idToken := strings.TrimPrefix(header, "Bearer ")
 
 		claims, err := verifier.VerifyIDToken(c.Request.Context(), idToken)
-		if err != nil {
+		if err != nil || claims == nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
 			return
 		}

@@ -2,7 +2,9 @@ package r2
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -28,6 +30,10 @@ type storageService struct {
 // New returns a StorageService backed by Cloudflare R2.
 // R2 is S3-compatible; the custom endpoint encodes the account ID.
 func New(accountID, accessKey, secretKey, bucket, publicBaseURL string) (StorageService, error) {
+	if accountID == "" || accessKey == "" || secretKey == "" || bucket == "" || publicBaseURL == "" {
+		return nil, errors.New("r2: accountID, accessKey, secretKey, bucket, and publicBaseURL are all required")
+	}
+
 	endpoint := fmt.Sprintf("https://%s.r2.cloudflarestorage.com", accountID)
 
 	cfg, err := config.LoadDefaultConfig(context.Background(),
@@ -75,5 +81,5 @@ func (s *storageService) Delete(ctx context.Context, key string) error {
 }
 
 func (s *storageService) PublicURL(key string) string {
-	return fmt.Sprintf("%s/%s", s.publicURL, key)
+	return s.publicURL + "/" + url.PathEscape(key)
 }

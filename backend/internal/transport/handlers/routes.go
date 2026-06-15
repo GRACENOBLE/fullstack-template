@@ -42,7 +42,14 @@ func (h *Handler) RegisterRoutes(rps float64, burst int, sentryDSN string) http.
 	r.GET("/", h.HelloWorldHandler)
 	r.GET("/health", h.HealthHandler)
 	r.GET("/ws", h.WsHandler)
-	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
+	// In staging/production, restrict /metrics to loopback and RFC 1918 addresses
+	// so Prometheus can scrape from the internal network but external clients cannot.
+	if gin.Mode() == gin.ReleaseMode {
+		r.GET("/metrics", middleware.LocalNetworkOnly(), gin.WrapH(promhttp.Handler()))
+	} else {
+		r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	}
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 

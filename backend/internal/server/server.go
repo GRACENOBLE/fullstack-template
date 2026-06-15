@@ -17,7 +17,7 @@ import (
 )
 
 // NewServer wires all layers and returns a configured *http.Server.
-func NewServer(app *bootstrap.App, hub *ws.Hub) *http.Server {
+func NewServer(app *bootstrap.App, hub *ws.Hub) (*http.Server, error) {
 	switch app.Config.Env {
 	case "staging", "production":
 		gin.SetMode(gin.ReleaseMode)
@@ -40,7 +40,7 @@ func NewServer(app *bootstrap.App, hub *ws.Hub) *http.Server {
 	if err := prometheus.Register(dbCollector); err != nil {
 		var are prometheus.AlreadyRegisteredError
 		if !errors.As(err, &are) {
-			app.Log.Warn("server: failed to register db metrics collector", "err", err)
+			return nil, fmt.Errorf("server: register db metrics collector: %w", err)
 		}
 	}
 
@@ -50,5 +50,5 @@ func NewServer(app *bootstrap.App, hub *ws.Hub) *http.Server {
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
-	}
+	}, nil
 }

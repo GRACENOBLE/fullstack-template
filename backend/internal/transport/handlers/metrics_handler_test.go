@@ -8,7 +8,7 @@ import (
 )
 
 func TestMetricsEndpoint_Returns200(t *testing.T) {
-	h := NewHandler(nil, nil, nil)
+	h := &Handler{}
 	handler := h.RegisterRoutes(0, 0, "")
 
 	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)

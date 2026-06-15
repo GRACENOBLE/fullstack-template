@@ -16,8 +16,11 @@ import (
 // RegisterRoutes creates the Gin engine, applies middleware, and registers all routes.
 // rps and burst configure IP-based rate limiting; pass rps<=0 to disable.
 // verifier enables Firebase token auth on protected routes; pass nil to skip auth (dev only).
-func (h *Handler) RegisterRoutes(rps float64, burst int, verifier usecase.FirebaseTokenVerifier) http.Handler {
+// sentryDSN enables Sentry error tracking; pass empty string to disable.
+func (h *Handler) RegisterRoutes(rps float64, burst int, verifier usecase.FirebaseTokenVerifier, sentryDSN string) http.Handler {
 	r := gin.New()
+
+	r.Use(middleware.SentryMiddleware(sentryDSN))
 
 	// Use Gin's colorful logger locally; structured slog logger in staging/production.
 	if gin.Mode() == gin.DebugMode {

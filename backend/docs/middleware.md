@@ -4,6 +4,7 @@ last_verified: 2026-06-15
 sources:
   - internal/transport/middleware/logger.go
   - internal/transport/middleware/ratelimit.go
+  - internal/transport/middleware/auth.go
   - internal/transport/handlers/routes.go
 ---
 
@@ -20,6 +21,18 @@ r.Use(gin.Recovery(), middleware.Logger())
 r.Use(middleware.RateLimit(rps, burst))
 // 3. CORS
 r.Use(cors.New(...))
+
+// Global routes (no auth):
+r.GET("/", h.HelloWorldHandler)
+r.GET("/health", h.HealthHandler)
+r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+// Protected group — FirebaseAuth applied when verifier != nil:
+api := r.Group("/api/v1")
+if verifier != nil {
+    api.Use(middleware.FirebaseAuth(verifier))
+}
+api.GET("/me", h.MeHandler)
 ```
 
 ## Logger
@@ -35,6 +48,30 @@ In debug mode (`ENV` not set to `staging`/`production`) Gin's built-in colorful 
 - **Disabled** when `rps <= 0` (no-op middleware returned).
 - **429 Too Many Requests** returned when the bucket is empty; body: `{"error": "rate limit exceeded"}`.
 - Configured via env vars `RATE_LIMIT_RPS` and `RATE_LIMIT_BURST` (see [environment](environment.md)).
+
+## FirebaseAuth
+
+`FirebaseAuth(verifier usecase.FirebaseTokenVerifier) gin.HandlerFunc` validates a Firebase ID token on every request to the routes it guards.
+
+```go
+const FirebaseClaimsKey = "firebase_claims"
+
+func FirebaseAuth(verifier usecase.FirebaseTokenVerifier) gin.HandlerFunc
+```
+
+Behaviour:
+- Expects `Authorization: Bearer <firebase-id-token>` header.
+- Calls `verifier.VerifyIDToken(ctx, idToken)` — the concrete implementation is `pkg/firebase.authClientAdapter`.
+- On success: stores `*usecase.FirebaseToken` in the Gin context under `FirebaseClaimsKey` and calls `c.Next()`.
+- On failure (missing header, malformed header, or token verification error): aborts with `401 Unauthorized` and a JSON body `{"error": "..."}`.
+
+Retrieve verified claims inside a handler:
+```go
+val, _ := c.Get(middleware.FirebaseClaimsKey)
+token, ok := val.(*usecase.FirebaseToken)
+```
+
+Pass `nil` as the `verifier` to `RegisterRoutes` to skip Firebase auth entirely (development without credentials).
 
 ## Adding new middleware
 

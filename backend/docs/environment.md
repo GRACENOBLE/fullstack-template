@@ -5,6 +5,7 @@ sources:
   - .env
   - internal/bootstrap/bootstrap.go
   - internal/infrastructure/database/postgres/db.go
+  - pkg/firebase/admin.go
 ---
 
 # Environment Variables
@@ -31,6 +32,8 @@ This runs on package init before any env var is read — no explicit `godotenv.L
 | `BLUEPRINT_DB_SSLMODE` | `bootstrap.go` | `disable` | Postgres SSL mode (`disable`, `require`, `verify-full`) |
 | `RATE_LIMIT_RPS` | `bootstrap.go` | `0` (disabled) | Max requests per second per IP. Set to `0` or omit to disable rate limiting. |
 | `RATE_LIMIT_BURST` | `bootstrap.go` | `int(RPS) * 5`, min 1 | Token-bucket burst capacity. Derived as `int(RPS)*5` when omitted; clamped to 1 so fractional RPS values never block all traffic. |
+| `FIREBASE_PROJECT_ID` | `bootstrap.go`, `pkg/firebase/admin.go` | — | Firebase project ID. When omitted the Firebase Admin client is not initialised and `FirebaseAuth` middleware is skipped (auth disabled). |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | `bootstrap.go`, `pkg/firebase/admin.go` | — | Raw JSON content of a Firebase service account key file. When omitted the SDK falls back to Application Default Credentials (ADC) — appropriate for GCP-hosted deployments. Only relevant when `FIREBASE_PROJECT_ID` is set. |
 
 Variables marked **required** are validated by `bootstrap.validateConfig` at startup — the process exits before attempting a DB connection if any are missing.
 

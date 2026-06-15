@@ -69,6 +69,23 @@ func TestLoadConfig_ExplicitSSLMode(t *testing.T) {
 	}
 }
 
+func TestLoadConfig_SentryDSN_Set(t *testing.T) {
+	const dsn = "https://key@o0.ingest.sentry.io/0"
+	t.Setenv("SENTRY_DSN", dsn)
+	cfg := loadConfig()
+	if cfg.SentryDSN != dsn {
+		t.Errorf("expected SentryDSN %q, got %q", dsn, cfg.SentryDSN)
+	}
+}
+
+func TestLoadConfig_SentryDSN_Unset(t *testing.T) {
+	t.Setenv("SENTRY_DSN", "")
+	cfg := loadConfig()
+	if cfg.SentryDSN != "" {
+		t.Errorf("expected empty SentryDSN, got %q", cfg.SentryDSN)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // validateConfig
 // ---------------------------------------------------------------------------

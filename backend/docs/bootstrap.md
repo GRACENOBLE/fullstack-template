@@ -1,6 +1,6 @@
 ---
 topic: bootstrap
-last_verified: 2026-06-14
+last_verified: 2026-06-15
 sources:
   - internal/bootstrap/bootstrap.go
   - internal/server/server.go
@@ -15,22 +15,30 @@ sources:
 ## App struct
 ```go
 type App struct {
-    DB     *sql.DB
-    Config Config
-    Log    *slog.Logger
+    DB       *sql.DB
+    Cache    usecase.CacheService        // nil when REDIS_URL is not set
+    Firebase usecase.FirebaseAdminClient // nil when FIREBASE_PROJECT_ID is not set
+    Config   Config
+    Log      *slog.Logger
 }
 ```
-`App` is constructed once by `Run` and passed to `server.NewServer`. Nothing re-initialises dependencies after this point.
+`App` is constructed once by `Run` and passed to `server.NewServer`. Nothing re-initialises dependencies after this point. Optional fields (`Cache`, `Firebase`) are nil when their corresponding env vars are absent.
 
 ## Config struct
 ```go
 type Config struct {
-    Port   int
-    AppEnv string
-    DB     postgres.DBConfig
+    Port                       int
+    Env                        string
+    DB                         postgres.DBConfig
+    RedisURL                   string
+    RateLimitRPS               float64
+    RateLimitBurst             int
+    FirebaseProjectID          string
+    FirebaseServiceAccountJSON string
+    SentryDSN                  string
 }
 ```
-`loadConfig()` reads all values from environment variables. `PORT` defaults to `8080`; `BLUEPRINT_DB_SCHEMA` defaults to `public`; `BLUEPRINT_DB_SSLMODE` defaults to `disable`.
+`loadConfig()` reads all values from environment variables. `PORT` defaults to `8080`; `BLUEPRINT_DB_SCHEMA` defaults to `public`; `BLUEPRINT_DB_SSLMODE` defaults to `disable`. `RateLimitBurst` is derived as `int(RPS)*5` when omitted and RPS is set. Optional fields (`RedisURL`, `FirebaseProjectID`, `FirebaseServiceAccountJSON`) default to empty string — their respective services are skipped when empty.
 
 ## Run sequence
 `bootstrap.Run(ctx)` executes these steps in order:
@@ -39,7 +47,9 @@ type Config struct {
 2. Validate required fields via `validateConfig()` — fast, no I/O
 3. Open `*sql.DB` via `postgres.NewPostgresDB(cfg.DB)`
 4. Probe Postgres with `probeWithRetry` under a 60-second total timeout
-5. Return `*App` on success; return a non-nil error on any failure
+5. Init Redis via `redis.New(cfg.RedisURL)` and probe it — skipped when `REDIS_URL` is empty
+6. Init Firebase Admin SDK via `firebase.NewAuthClient(ctx, projectID, credentialsJSON)` — skipped when `FIREBASE_PROJECT_ID` is empty
+7. Return `*App` on success; return a non-nil error on any failure
 
 ```go
 ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

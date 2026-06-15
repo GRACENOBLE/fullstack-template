@@ -13,3 +13,5 @@ The `docs` agent reads this index first to locate the right file before diving i
 | Error handling conventions | [error-handling.md](error-handling.md) | `internal/infrastructure/database/postgres/health_repository.go`, `internal/transport/handlers/health_handler.go`, `cmd/api/main.go` |
 | Environment variables | [environment.md](environment.md) | `.env`, `internal/bootstrap/bootstrap.go`, `internal/infrastructure/database/postgres/db.go` |
 | Middleware (logger, rate limiter) | [middleware.md](middleware.md) | `internal/transport/middleware/logger.go`, `internal/transport/middleware/ratelimit.go`, `internal/transport/handlers/routes.go` |
+| Firebase Auth (token verification, middleware, MeHandler) | [auth.md](auth.md) | `internal/usecase/auth_usecase.go`, `internal/transport/middleware/auth.go`, `internal/transport/handlers/auth_handler.go`, `pkg/firebase/admin.go`, `internal/bootstrap/bootstrap.go` |
+| Observability (Sentry error tracking) | [observability.md](observability.md) | `internal/transport/middleware/sentry.go`, `internal/bootstrap/bootstrap.go`, `internal/transport/handlers/routes.go` |

@@ -50,6 +50,7 @@ type Config struct {
 	RateLimitBurst             int
 	FirebaseProjectID          string
 	FirebaseServiceAccountJSON string
+	SentryDSN                  string
 }
 
 // ConfigError is returned when required configuration is absent or invalid.
@@ -156,6 +157,7 @@ func loadConfig() Config {
 		RateLimitBurst:             burst,
 		FirebaseProjectID:          os.Getenv("FIREBASE_PROJECT_ID"),
 		FirebaseServiceAccountJSON: os.Getenv("FIREBASE_SERVICE_ACCOUNT_JSON"),
+		SentryDSN:                  os.Getenv("SENTRY_DSN"),
 		DB: postgres.DBConfig{
 			Host:     os.Getenv("BLUEPRINT_DB_HOST"),
 			Port:     os.Getenv("BLUEPRINT_DB_PORT"),

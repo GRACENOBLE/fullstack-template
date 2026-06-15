@@ -6,6 +6,7 @@ sources:
   - internal/transport/handlers/routes.go
   - internal/transport/handlers/hello_handler.go
   - internal/transport/handlers/health_handler.go
+  - internal/transport/handlers/auth_handler.go
   - internal/transport/middleware/logger.go
   - internal/server/server.go
   - cmd/api/main.go
@@ -28,16 +29,16 @@ The `Handler` struct holds use case interfaces — not `*sql.DB` directly. Add n
 
 ## Wiring (server.go)
 `internal/server/server.go` contains `NewServer(app *bootstrap.App) *http.Server` — wiring only, no logic.
-It receives the already-validated `*bootstrap.App` (which holds `*sql.DB` and `Config`), constructs the repository, use case, and handler in order, then returns a configured `*http.Server`. It does not read env vars or return an error.
+It receives the already-validated `*bootstrap.App` (which holds `*sql.DB`, `Cache`, `Firebase`, and `Config`), constructs the repository, use case, and handler in order, then returns a configured `*http.Server`. It does not read env vars or return an error.
 
 ```go
 healthRepo := postgres.NewHealthRepository(app.DB)
 healthUC := usecase.NewHealthUseCase(healthRepo)
-h := handler.NewHandler(healthUC)
+h := handlers.NewHandler(healthUC)
 
 return &http.Server{
     Addr:         fmt.Sprintf(":%d", app.Config.Port),
-    Handler:      h.RegisterRoutes(app.Config.RateLimitRPS, app.Config.RateLimitBurst),
+    Handler:      h.RegisterRoutes(app.Config.RateLimitRPS, app.Config.RateLimitBurst, app.Firebase, app.Config.SentryDSN),
     IdleTimeout:  time.Minute,
     ReadTimeout:  10 * time.Second,
     WriteTimeout: 30 * time.Second,
@@ -47,9 +48,10 @@ return &http.Server{
 ## Route registration
 All routes registered in `RegisterRoutes()` on `*Handler`, which returns `http.Handler`.
 `rps` and `burst` come from `bootstrap.Config` (env vars `RATE_LIMIT_RPS` / `RATE_LIMIT_BURST`); pass `rps=0` to disable.
+`verifier` is a `usecase.FirebaseTokenVerifier`; pass `nil` to skip Firebase auth (development only — see [auth](auth.md)).
 
 ```go
-func (h *Handler) RegisterRoutes(rps float64, burst int) http.Handler {
+func (h *Handler) RegisterRoutes(rps float64, burst int, verifier usecase.FirebaseTokenVerifier, sentryDSN string) http.Handler {
     r := gin.New()
 
     // Gin's colorful logger locally; structured slog logger in staging/production.
@@ -63,8 +65,15 @@ func (h *Handler) RegisterRoutes(rps float64, burst int) http.Handler {
 
     r.Use(cors.New(cors.Config{ ... }))
 
-    r.GET("/path", h.myHandler)
+    r.GET("/", h.HelloWorldHandler)
+    r.GET("/health", h.HealthHandler)
     r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+    api := r.Group("/api/v1")
+    if verifier != nil {
+        api.Use(middleware.FirebaseAuth(verifier))
+    }
+    api.GET("/me", h.MeHandler)
 
     return r
 }
@@ -91,10 +100,11 @@ Allowed methods: GET, POST, PUT, DELETE, OPTIONS, PATCH.
 `AllowCredentials: true` — cookies and auth headers pass through.
 
 ## Existing routes
-| Method | Path | Handler | File |
-|---|---|---|---|
-| GET | `/` | `HelloWorldHandler` — returns `{"message": "Hello World"}` | `hello_handler.go` |
-| GET | `/health` | `healthHandler` — returns `HealthStats`; 503 when DB is down | `health_handler.go` |
+| Method | Path | Auth | Handler | File |
+|---|---|---|---|---|
+| GET | `/` | none | `HelloWorldHandler` — returns `{"message": "Hello World"}` | `hello_handler.go` |
+| GET | `/health` | none | `HealthHandler` — returns `HealthStats`; 503 when DB is down | `health_handler.go` |
+| GET | `/api/v1/me` | FirebaseAuth | `MeHandler` — returns verified `FirebaseToken` claims | `auth_handler.go` |
 
 ## Graceful shutdown
 Wired in `cmd/api/main.go` via `signal.NotifyContext` for SIGINT/SIGTERM.

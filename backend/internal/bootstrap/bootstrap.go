@@ -18,6 +18,7 @@ import (
 	"backend/internal/infrastructure/cache/redis"
 	"backend/internal/infrastructure/database/postgres"
 	"backend/internal/usecase"
+	"backend/pkg/firebase"
 	"backend/pkg/logger"
 )
 
@@ -32,20 +33,23 @@ const (
 // App holds all initialised, validated shared dependencies.
 // Constructed once by Run and passed to the HTTP server.
 type App struct {
-	DB     *sql.DB
-	Cache  usecase.CacheService // nil when REDIS_URL is not set
-	Config Config
-	Log    *slog.Logger
+	DB       *sql.DB
+	Cache    usecase.CacheService        // nil when REDIS_URL is not set
+	Firebase usecase.FirebaseAdminClient // nil when FIREBASE_PROJECT_ID is not set
+	Config   Config
+	Log      *slog.Logger
 }
 
 // Config holds all validated configuration values read from environment variables.
 type Config struct {
-	Port           int
-	Env            string
-	DB             postgres.DBConfig
-	RedisURL       string
-	RateLimitRPS   float64
-	RateLimitBurst int
+	Port                       int
+	Env                        string
+	DB                         postgres.DBConfig
+	RedisURL                   string
+	RateLimitRPS               float64
+	RateLimitBurst             int
+	FirebaseProjectID          string
+	FirebaseServiceAccountJSON string
 }
 
 // ConfigError is returned when required configuration is absent or invalid.
@@ -101,13 +105,24 @@ func Run(ctx context.Context) (*App, error) {
 		cache = c
 	}
 
+	var firebaseClient usecase.FirebaseAdminClient
+	if cfg.FirebaseProjectID != "" {
+		client, err := firebase.NewAuthClient(ctx, cfg.FirebaseProjectID, cfg.FirebaseServiceAccountJSON)
+		if err != nil {
+			return nil, fmt.Errorf("bootstrap: firebase: %w", err)
+		}
+		firebaseClient = client
+		log.Info("bootstrap: firebase auth client initialised", "project_id", cfg.FirebaseProjectID)
+	}
+
 	log.Info("bootstrap: all checks passed — ready to serve")
 
 	return &App{
-		DB:     db,
-		Cache:  cache,
-		Config: cfg,
-		Log:    log,
+		DB:       db,
+		Cache:    cache,
+		Firebase: firebaseClient,
+		Config:   cfg,
+		Log:      log,
 	}, nil
 }
 
@@ -134,11 +149,13 @@ func loadConfig() Config {
 	}
 
 	return Config{
-		Port:           port,
-		Env:            os.Getenv("ENV"),
-		RedisURL:       os.Getenv("REDIS_URL"),
-		RateLimitRPS:   rps,
-		RateLimitBurst: burst,
+		Port:                       port,
+		Env:                        os.Getenv("ENV"),
+		RedisURL:                   os.Getenv("REDIS_URL"),
+		RateLimitRPS:               rps,
+		RateLimitBurst:             burst,
+		FirebaseProjectID:          os.Getenv("FIREBASE_PROJECT_ID"),
+		FirebaseServiceAccountJSON: os.Getenv("FIREBASE_SERVICE_ACCOUNT_JSON"),
 		DB: postgres.DBConfig{
 			Host:     os.Getenv("BLUEPRINT_DB_HOST"),
 			Port:     os.Getenv("BLUEPRINT_DB_PORT"),

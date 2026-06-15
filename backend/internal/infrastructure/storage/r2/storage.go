@@ -1,0 +1,79 @@
+package r2
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+)
+
+// StorageService is the interface satisfied by this Cloudflare R2 adapter.
+type StorageService interface {
+	PresignUpload(ctx context.Context, key string, contentType string, ttl time.Duration) (string, error)
+	Delete(ctx context.Context, key string) error
+	PublicURL(key string) string
+}
+
+type storageService struct {
+	client    *s3.Client
+	presigner *s3.PresignClient
+	bucket    string
+	publicURL string
+}
+
+// New returns a StorageService backed by Cloudflare R2.
+// R2 is S3-compatible; the custom endpoint encodes the account ID.
+func New(accountID, accessKey, secretKey, bucket, publicBaseURL string) (StorageService, error) {
+	endpoint := fmt.Sprintf("https://%s.r2.cloudflarestorage.com", accountID)
+
+	cfg, err := config.LoadDefaultConfig(context.Background(),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")),
+		config.WithRegion("auto"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("r2: load config: %w", err)
+	}
+
+	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.BaseEndpoint = aws.String(endpoint)
+		o.UsePathStyle = true
+	})
+
+	return &storageService{
+		client:    client,
+		presigner: s3.NewPresignClient(client),
+		bucket:    bucket,
+		publicURL: publicBaseURL,
+	}, nil
+}
+
+func (s *storageService) PresignUpload(ctx context.Context, key string, contentType string, ttl time.Duration) (string, error) {
+	req, err := s.presigner.PresignPutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(s.bucket),
+		Key:         aws.String(key),
+		ContentType: aws.String(contentType),
+	}, s3.WithPresignExpires(ttl))
+	if err != nil {
+		return "", fmt.Errorf("r2: presign put: %w", err)
+	}
+	return req.URL, nil
+}
+
+func (s *storageService) Delete(ctx context.Context, key string) error {
+	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return fmt.Errorf("r2: delete object: %w", err)
+	}
+	return nil
+}
+
+func (s *storageService) PublicURL(key string) string {
+	return fmt.Sprintf("%s/%s", s.publicURL, key)
+}

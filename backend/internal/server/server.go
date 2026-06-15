@@ -32,7 +32,7 @@ func NewServer(app *bootstrap.App) *http.Server {
 
 	return &http.Server{
 		Addr:         fmt.Sprintf(":%d", app.Config.Port),
-		Handler:      h.RegisterRoutes(app.Config.RateLimitRPS, app.Config.RateLimitBurst),
+		Handler:      h.RegisterRoutes(app.Config.RateLimitRPS, app.Config.RateLimitBurst, app.Firebase),
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,

@@ -39,6 +39,11 @@ func gracefulShutdown(apiServer *http.Server, done chan bool) {
 //
 // @host		localhost:8080
 // @BasePath	/
+//
+// @securityDefinitions.apikey	BearerAuth
+// @in							header
+// @name						Authorization
+// @description				Firebase ID token — prefix with "Bearer "
 func main() {
 	// Signal-aware context so SIGINT/SIGTERM cancels bootstrap probes immediately.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

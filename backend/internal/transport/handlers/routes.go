@@ -10,11 +10,13 @@ import (
 
 	_ "backend/docs/swagger"
 	"backend/internal/transport/middleware"
+	"backend/internal/usecase"
 )
 
 // RegisterRoutes creates the Gin engine, applies middleware, and registers all routes.
 // rps and burst configure IP-based rate limiting; pass rps<=0 to disable.
-func (h *Handler) RegisterRoutes(rps float64, burst int) http.Handler {
+// verifier enables Firebase token auth on protected routes; pass nil to skip auth (dev only).
+func (h *Handler) RegisterRoutes(rps float64, burst int, verifier usecase.FirebaseTokenVerifier) http.Handler {
 	r := gin.New()
 
 	// Use Gin's colorful logger locally; structured slog logger in staging/production.
@@ -37,6 +39,12 @@ func (h *Handler) RegisterRoutes(rps float64, burst int) http.Handler {
 	r.GET("/health", h.HealthHandler)
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	api := r.Group("/api/v1")
+	if verifier != nil {
+		api.Use(middleware.FirebaseAuth(verifier))
+	}
+	api.GET("/me", h.MeHandler)
 
 	return r
 }

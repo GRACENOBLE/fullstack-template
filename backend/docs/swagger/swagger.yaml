@@ -1,5 +1,19 @@
 basePath: /
 definitions:
+  handlers.FirebaseToken:
+    properties:
+      claims:
+        additionalProperties: {}
+        type: object
+      email:
+        type: string
+      name:
+        type: string
+      photoUrl:
+        type: string
+      uid:
+        type: string
+    type: object
   handlers.HealthStats:
     properties:
       error:
@@ -44,6 +58,29 @@ paths:
       summary: Hello World
       tags:
       - general
+  /api/v1/me:
+    get:
+      description: 'Returns the authenticated Firebase user''s decoded claims. Requires
+        Authorization: Bearer <firebase-id-token>.'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.FirebaseToken'
+        "401":
+          description: Missing or invalid token
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - auth
   /health:
     get:
       produces:
@@ -60,4 +97,10 @@ paths:
       summary: Health check
       tags:
       - ops
+securityDefinitions:
+  BearerAuth:
+    description: Firebase ID token — prefix with "Bearer "
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

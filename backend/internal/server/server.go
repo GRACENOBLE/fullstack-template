@@ -7,7 +7,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hibiken/asynq"
+	"github.com/hibiken/asynqmon"
 	"github.com/prometheus/client_golang/prometheus"
+	goredis "github.com/redis/go-redis/v9"
 
 	"backend/internal/bootstrap"
 	"backend/internal/infrastructure/database/postgres"
@@ -31,7 +34,24 @@ func NewServer(app *bootstrap.App, hub *ws.Hub) (*http.Server, error) {
 
 	healthRepo := postgres.NewHealthRepository(app.DB)
 	healthUC := usecase.NewHealthUseCase(healthRepo)
-	h := handlers.NewHandler(healthUC, app.Firebase, hub)
+
+	// Build Asynqmon UI handler when Redis is available.
+	var queueUI http.Handler
+	if app.Config.RedisURL != "" {
+		redisOpt, err := goredis.ParseURL(app.Config.RedisURL)
+		if err == nil {
+			queueUI = asynqmon.New(asynqmon.Options{
+				RootPath: "/admin/queues",
+				RedisConnOpt: asynq.RedisClientOpt{
+					Addr:     redisOpt.Addr,
+					Password: redisOpt.Password,
+					DB:       redisOpt.DB,
+				},
+			})
+		}
+	}
+
+	h := handlers.NewHandler(healthUC, app.Firebase, hub, app.Enqueuer, queueUI)
 
 	// Register DB pool metrics collector.
 	// AlreadyRegisteredError is silenced — only the first registration wins

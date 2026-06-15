@@ -30,8 +30,8 @@ func NewHandler(healthUC usecase.HealthUseCase, verifier usecase.FirebaseTokenVe
 The `Handler` struct holds use case interfaces and infrastructure dependencies — not `*sql.DB` directly. `verifier` is stored on the struct (not passed to `RegisterRoutes`) so the WebSocket handler can read it inline for query-param auth.
 
 ## Wiring (server.go)
-`internal/server/server.go` contains `NewServer(app *bootstrap.App) *http.Server` — wiring only, no logic.
-It receives the already-validated `*bootstrap.App` (which holds `*sql.DB`, `Cache`, `Firebase`, and `Config`), constructs the repository, use case, and handler in order, then returns a configured `*http.Server`. It does not read env vars or return an error.
+`internal/server/server.go` contains `NewServer(app *bootstrap.App, hub *ws.Hub) (*http.Server, error)` — wiring only, no logic.
+It receives the already-validated `*bootstrap.App` (which holds `*sql.DB`, `Cache`, `Firebase`, and `Config`) and a `*ws.Hub`, constructs the repository, use case, and handler in order, then returns a configured `*http.Server`. Errors from initialisation steps are returned to the caller.
 
 ```go
 healthRepo := postgres.NewHealthRepository(app.DB)
@@ -44,13 +44,13 @@ return &http.Server{
     IdleTimeout:  time.Minute,
     ReadTimeout:  10 * time.Second,
     WriteTimeout: 30 * time.Second,
-}
+}, nil
 ```
 
 ## Route registration
 All routes registered in `RegisterRoutes()` on `*Handler`, which returns `http.Handler`.
 `rps` and `burst` come from `bootstrap.Config` (env vars `RATE_LIMIT_RPS` / `RATE_LIMIT_BURST`); pass `rps=0` to disable.
-`verifier` is a `usecase.FirebaseTokenVerifier`; pass `nil` to skip Firebase auth (development only — see [auth](auth.md)).
+`h.verifier` (set via `NewHandler`) controls Firebase auth — the verifier is read from the struct, not passed to `RegisterRoutes`; a `nil` verifier skips Firebase auth (development only — see [auth](auth.md)).
 
 ```go
 func (h *Handler) RegisterRoutes(rps float64, burst int, sentryDSN string) http.Handler {
@@ -109,13 +109,14 @@ Allowed methods: GET, POST, PUT, DELETE, OPTIONS, PATCH.
 | GET | `/` | none | `HelloWorldHandler` — returns `{"message": "Hello World"}` | `hello_handler.go` |
 | GET | `/health` | none | `HealthHandler` — returns `HealthStats`; 503 when DB is down | `health_handler.go` |
 | GET | `/ws` | `?token=` query param | `WsHandler` — upgrades to WebSocket; 401 when token missing/invalid | `ws_handler.go` |
+| GET | `/metrics` | `LocalNetworkOnly()` | Prometheus scrape endpoint; restricted to loopback/RFC 1918 in staging/production | `metrics_handler.go` |
 | GET | `/api/v1/me` | FirebaseAuth header | `MeHandler` — returns verified `FirebaseToken` claims | `auth_handler.go` |
 
 ## Graceful shutdown
 Wired in `cmd/api/main.go` via `signal.NotifyContext` for SIGINT/SIGTERM.
 5-second shutdown timeout. Server notifies `done chan bool` when complete.
 `main()` calls `bootstrap.Run(ctx)` first; on failure it writes to stderr and calls `os.Exit(1)`.
-`server.NewServer` does not return an error — all fallible startup work is in bootstrap.
+`server.NewServer` returns `(*http.Server, error)` — the caller in `cmd/api/main.go` checks the error and exits on failure.
 Do not add shutdown logic to `internal/` — it belongs in `cmd/`.
 
 ## Adding a new route — checklist

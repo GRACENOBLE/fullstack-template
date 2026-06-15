@@ -15,11 +15,15 @@ All middleware lives in `internal/transport/middleware/` and follows the Gin `Ha
 ## Registration order
 
 ```go
-// 1. Recovery + logger (debug: gin.Logger, release: middleware.Logger)
+// 1. Sentry error reporting
+r.Use(middleware.SentryMiddleware(sentryDSN))
+// 2. Recovery + logger (debug: gin.Logger, release: middleware.Logger)
 r.Use(gin.Recovery(), middleware.Logger())
-// 2. Rate limiter (no-op when RPS <= 0)
+// 3. Prometheus metrics collection
+r.Use(middleware.PrometheusMiddleware())
+// 4. Rate limiter (no-op when RPS <= 0)
 r.Use(middleware.RateLimit(rps, burst))
-// 3. CORS
+// 5. CORS
 r.Use(cors.New(...))
 
 // Global routes (no auth):
@@ -27,10 +31,10 @@ r.GET("/", h.HelloWorldHandler)
 r.GET("/health", h.HealthHandler)
 r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-// Protected group — FirebaseAuth applied when verifier != nil:
+// Protected group — FirebaseAuth applied when h.verifier != nil:
 api := r.Group("/api/v1")
-if verifier != nil {
-    api.Use(middleware.FirebaseAuth(verifier))
+if h.verifier != nil {
+    api.Use(middleware.FirebaseAuth(h.verifier))
 }
 api.GET("/me", h.MeHandler)
 ```
@@ -71,7 +75,7 @@ val, _ := c.Get(middleware.FirebaseClaimsKey)
 token, ok := val.(*usecase.FirebaseToken)
 ```
 
-Pass `nil` as the `verifier` to `RegisterRoutes` to skip Firebase auth entirely (development without credentials).
+Pass `nil` as the `verifier` to `NewHandler` to skip Firebase auth entirely (development without credentials). `RegisterRoutes` reads `h.verifier` from the struct — it is not a parameter of `RegisterRoutes`.
 
 ## Adding new middleware
 

@@ -58,6 +58,18 @@ paths:
       summary: Hello World
       tags:
       - general
+  /admin/queues:
+    get:
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: Asynqmon UI
+          schema:
+            type: string
+      summary: Asynq job monitoring UI
+      tags:
+      - observability
   /api/v1/me:
     get:
       description: 'Returns the authenticated Firebase user''s decoded claims. Requires

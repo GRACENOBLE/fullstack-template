@@ -17,6 +17,7 @@ import (
 
 	"backend/internal/infrastructure/cache/redis"
 	"backend/internal/infrastructure/database/postgres"
+	"backend/internal/infrastructure/queue"
 	"backend/internal/usecase"
 	"backend/pkg/firebase"
 	"backend/pkg/logger"
@@ -35,6 +36,7 @@ const (
 type App struct {
 	DB       *sql.DB
 	Cache    usecase.CacheService        // nil when REDIS_URL is not set
+	Enqueuer usecase.Enqueuer            // nil when REDIS_URL is not set
 	Firebase usecase.FirebaseAdminClient // nil when FIREBASE_PROJECT_ID is not set
 	Config   Config
 	Log      *slog.Logger
@@ -106,6 +108,15 @@ func Run(ctx context.Context) (*App, error) {
 		cache = c
 	}
 
+	var enqueuer usecase.Enqueuer
+	if cfg.RedisURL != "" {
+		eq, err := queue.NewClient(cfg.RedisURL)
+		if err != nil {
+			return nil, fmt.Errorf("bootstrap: queue: %w", err)
+		}
+		enqueuer = eq
+	}
+
 	var firebaseClient usecase.FirebaseAdminClient
 	if cfg.FirebaseProjectID != "" {
 		client, err := firebase.NewAuthClient(ctx, cfg.FirebaseProjectID, cfg.FirebaseServiceAccountJSON)
@@ -121,6 +132,7 @@ func Run(ctx context.Context) (*App, error) {
 	return &App{
 		DB:       db,
 		Cache:    cache,
+		Enqueuer: enqueuer,
 		Firebase: firebaseClient,
 		Config:   cfg,
 		Log:      log,

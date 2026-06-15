@@ -10,7 +10,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hibiken/asynq"
+
 	"backend/internal/bootstrap"
+	"backend/internal/infrastructure/queue"
 	"backend/internal/infrastructure/ws"
 	"backend/internal/server"
 )
@@ -60,6 +63,23 @@ func main() {
 	hub := ws.NewHub()
 	go hub.Run(hubCtx)
 
+	var workerCancel context.CancelFunc
+	if app.Config.RedisURL != "" {
+		workerCtx, wCancel := context.WithCancel(context.Background())
+		workerCancel = wCancel
+		worker, err := queue.NewWorker(app.Config.RedisURL)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "startup failed: %v\n", err)
+			os.Exit(1)
+		}
+		worker.Register(queue.TypeWelcomeEmail, asynq.HandlerFunc(queue.HandleWelcomeEmail))
+		go func() {
+			if err := worker.Run(workerCtx); err != nil {
+				slog.Error("queue: worker error", "err", err)
+			}
+		}()
+	}
+
 	srv, err := server.NewServer(app, hub)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "startup failed: %v\n", err)
@@ -75,11 +95,20 @@ func main() {
 	}
 
 	<-done
+
+	if workerCancel != nil {
+		workerCancel() // stop worker before hub (in-flight jobs drain first)
+	}
 	hubCancel() // stop hub after all WS connections have been closed by server shutdown
 
 	if app.Cache != nil {
 		if err := app.Cache.Close(); err != nil {
 			slog.Error("cache close error", "error", err)
+		}
+	}
+	if app.Enqueuer != nil {
+		if err := app.Enqueuer.Close(); err != nil {
+			slog.Error("enqueuer close error", "error", err)
 		}
 	}
 	slog.Info("graceful shutdown complete")

@@ -37,6 +37,25 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/queues": {
+            "get": {
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "observability"
+                ],
+                "summary": "Asynq job monitoring UI",
+                "responses": {
+                    "200": {
+                        "description": "Asynqmon UI",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/me": {
             "get": {
                 "security": [

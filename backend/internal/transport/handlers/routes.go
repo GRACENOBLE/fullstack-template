@@ -53,6 +53,12 @@ func (h *Handler) RegisterRoutes(rps float64, burst int, sentryDSN string) http.
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
+	// Asynqmon job-monitoring UI — debug/local only.
+	if gin.Mode() == gin.DebugMode && h.queueUI != nil {
+		r.GET("/admin/queues", gin.WrapH(h.queueUI))
+		r.Any("/admin/queues/*path", gin.WrapH(h.queueUI))
+	}
+
 	api := r.Group("/api/v1")
 	if h.verifier != nil {
 		api.Use(middleware.FirebaseAuth(h.verifier))

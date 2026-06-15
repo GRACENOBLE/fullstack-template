@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
@@ -28,6 +29,7 @@ func (h *Handler) RegisterRoutes(rps float64, burst int, sentryDSN string) http.
 		r.Use(gin.Recovery(), middleware.Logger())
 	}
 
+	r.Use(middleware.PrometheusMiddleware())
 	r.Use(middleware.RateLimit(rps, burst))
 
 	r.Use(cors.New(cors.Config{
@@ -40,6 +42,14 @@ func (h *Handler) RegisterRoutes(rps float64, burst int, sentryDSN string) http.
 	r.GET("/", h.HelloWorldHandler)
 	r.GET("/health", h.HealthHandler)
 	r.GET("/ws", h.WsHandler)
+
+	// In staging/production, restrict /metrics to loopback and RFC 1918 addresses
+	// so Prometheus can scrape from the internal network but external clients cannot.
+	if gin.Mode() == gin.ReleaseMode {
+		r.GET("/metrics", middleware.LocalNetworkOnly(), gin.WrapH(promhttp.Handler()))
+	} else {
+		r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	}
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 

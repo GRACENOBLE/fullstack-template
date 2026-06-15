@@ -60,7 +60,11 @@ func main() {
 	hub := ws.NewHub()
 	go hub.Run(hubCtx)
 
-	srv := server.NewServer(app, hub)
+	srv, err := server.NewServer(app, hub)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "startup failed: %v\n", err)
+		os.Exit(1)
+	}
 	slog.Info("API docs", "url", fmt.Sprintf("http://localhost%s/swagger/index.html", srv.Addr))
 
 	done := make(chan bool, 1)

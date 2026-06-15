@@ -41,7 +41,7 @@ Behavior:
 `RegisterRoutes` signature:
 
 ```go
-func (h *Handler) RegisterRoutes(rps float64, burst int, verifier usecase.FirebaseTokenVerifier, sentryDSN string) http.Handler
+func (h *Handler) RegisterRoutes(rps float64, burst int, sentryDSN string) http.Handler
 ```
 
 The `sentryDSN` parameter is forwarded directly from `Config.SentryDSN`.

@@ -34,6 +34,8 @@ This runs on package init before any env var is read — no explicit `godotenv.L
 | `RATE_LIMIT_BURST` | `bootstrap.go` | `int(RPS) * 5`, min 1 | Token-bucket burst capacity. Derived as `int(RPS)*5` when omitted; clamped to 1 so fractional RPS values never block all traffic. |
 | `FIREBASE_PROJECT_ID` | `bootstrap.go`, `pkg/firebase/admin.go` | — | Firebase project ID. When omitted the Firebase Admin client is not initialised and `FirebaseAuth` middleware is skipped (auth disabled). |
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | `bootstrap.go`, `pkg/firebase/admin.go` | — | Raw JSON content of a Firebase service account key file. When omitted the SDK falls back to Application Default Credentials (ADC) — appropriate for GCP-hosted deployments. Only relevant when `FIREBASE_PROJECT_ID` is set. |
+| `REDIS_URL` | `bootstrap.go` | — | Redis connection URL. When omitted or empty, cache/Redis initialization is skipped and the app runs without Redis. |
+| `BLUEPRINT_WS_ALLOWED_ORIGIN` | `internal/transport/handlers/ws_handler.go` | — | Allowed origin for WebSocket CORS checks in staging/production. When omitted, WebSocket origin validation is skipped (local dev). |
 
 Variables marked **required** are validated by `bootstrap.validateConfig` at startup — the process exits before attempting a DB connection if any are missing.
 

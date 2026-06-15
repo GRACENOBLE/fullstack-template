@@ -97,6 +97,18 @@ paths:
       summary: Health check
       tags:
       - ops
+  /metrics:
+    get:
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Prometheus exposition format
+          schema:
+            type: string
+      summary: Prometheus metrics
+      tags:
+      - observability
   /ws:
     get:
       description: Upgrades HTTP to WebSocket. Pass a Firebase ID token as `?token=<token>`.

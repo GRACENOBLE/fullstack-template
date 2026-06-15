@@ -12,3 +12,4 @@ The `docs` agent reads this index first to locate the right file.
 | Testing patterns | [testing.md](testing.md) | `vitest.config.ts`, `vitest.setup.ts`, `__tests__/page.test.tsx` |
 | Observability (Sentry error tracking) | [observability.md](observability.md) | `sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`, `next.config.ts`, `.env.example` |
 | WebSocket hook (useWebSocket, reconnect, auth) | [websocket.md](websocket.md) | `lib/useWebSocket.ts`, `lib/useWebSocket.test.ts` |
+| Firebase Cloud Messaging — permission, token, service worker, useFCM hook | [fcm.md](fcm.md) | `lib/fcm.ts`, `lib/useFCM.ts`, `public/firebase-messaging-sw.js`, `lib/fcm.test.ts` |

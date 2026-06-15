@@ -58,6 +58,8 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.sentry.android)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging.ktx)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)

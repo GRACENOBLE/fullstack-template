@@ -1,6 +1,6 @@
 ---
 topic: index
-last_verified: 2026-06-14
+last_verified: 2026-06-16
 ---
 
 # Mobile docs index
@@ -13,3 +13,4 @@ Topic-based documentation for the Android app. Each file is kept in sync with th
 | Activity and Compose architecture | `architecture.md` | `app/src/main/java/com/company/template/MainActivity.kt`, `app/build.gradle.kts` |
 | Testing patterns | `testing.md` | `app/src/test/java/com/company/template/GreetingFormatTest.kt`, `app/src/androidTest/java/com/company/template/GreetingTest.kt`, `app/build.gradle.kts` |
 | Observability (Sentry error tracking) | `observability.md` | `gradle/libs.versions.toml`, `app/build.gradle.kts`, `app/src/main/java/com/company/template/MainActivity.kt` |
+| Firebase Cloud Messaging — service, token registration, background notifications | `fcm.md` | `app/src/main/java/com/company/template/fcm/MyFirebaseMessagingService.kt`, `app/src/main/java/com/company/template/fcm/FcmRegistrationPayload.kt`, `app/src/main/AndroidManifest.xml`, `gradle/libs.versions.toml` |

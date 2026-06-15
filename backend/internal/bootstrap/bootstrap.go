@@ -34,12 +34,13 @@ const (
 // App holds all initialised, validated shared dependencies.
 // Constructed once by Run and passed to the HTTP server.
 type App struct {
-	DB       *sql.DB
-	Cache    usecase.CacheService        // nil when REDIS_URL is not set
-	Enqueuer usecase.Enqueuer            // nil when REDIS_URL is not set
-	Firebase usecase.FirebaseAdminClient // nil when FIREBASE_PROJECT_ID is not set
-	Config   Config
-	Log      *slog.Logger
+	DB        *sql.DB
+	Cache     usecase.CacheService        // nil when REDIS_URL is not set
+	Enqueuer  usecase.Enqueuer            // nil when REDIS_URL is not set
+	Firebase  usecase.FirebaseAdminClient // nil when FIREBASE_PROJECT_ID is not set
+	FCMSender usecase.NotificationSender  // nil when FIREBASE_PROJECT_ID is not set
+	Config    Config
+	Log       *slog.Logger
 }
 
 // Config holds all validated configuration values read from environment variables.
@@ -118,24 +119,35 @@ func Run(ctx context.Context) (*App, error) {
 	}
 
 	var firebaseClient usecase.FirebaseAdminClient
+	var fcmSender usecase.NotificationSender
 	if cfg.FirebaseProjectID != "" {
-		client, err := firebase.NewAuthClient(ctx, cfg.FirebaseProjectID, cfg.FirebaseServiceAccountJSON)
+		fbApp, err := firebase.NewApp(ctx, cfg.FirebaseProjectID, cfg.FirebaseServiceAccountJSON)
 		if err != nil {
 			return nil, fmt.Errorf("bootstrap: firebase: %w", err)
 		}
-		firebaseClient = client
-		log.Info("bootstrap: firebase auth client initialised", "project_id", cfg.FirebaseProjectID)
+		authClient, err := firebase.NewAuthClient(ctx, fbApp)
+		if err != nil {
+			return nil, fmt.Errorf("bootstrap: firebase auth: %w", err)
+		}
+		firebaseClient = authClient
+		msgClient, err := firebase.NewMessagingClient(ctx, fbApp)
+		if err != nil {
+			return nil, fmt.Errorf("bootstrap: firebase messaging: %w", err)
+		}
+		fcmSender = msgClient
+		log.Info("bootstrap: firebase clients initialised", "project_id", cfg.FirebaseProjectID)
 	}
 
 	log.Info("bootstrap: all checks passed — ready to serve")
 
 	return &App{
-		DB:       db,
-		Cache:    cache,
-		Enqueuer: enqueuer,
-		Firebase: firebaseClient,
-		Config:   cfg,
-		Log:      log,
+		DB:        db,
+		Cache:     cache,
+		Enqueuer:  enqueuer,
+		Firebase:  firebaseClient,
+		FCMSender: fcmSender,
+		Config:    cfg,
+		Log:       log,
 	}, nil
 }
 

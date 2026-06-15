@@ -5,6 +5,9 @@ sources:
   - internal/usecase/auth_usecase.go
   - internal/transport/middleware/auth.go
   - internal/transport/handlers/auth_handler.go
+  - internal/transport/handlers/handler.go
+  - internal/transport/handlers/routes.go
+  - internal/server/server.go
   - pkg/firebase/admin.go
   - internal/bootstrap/bootstrap.go
 ---
@@ -94,17 +97,17 @@ func (h *Handler) MeHandler(c *gin.Context)
 - Returns `200 OK` with the token struct serialised as JSON.
 - Returns `401 Unauthorized` with `{"error": "unauthorized"}` if the context value is missing or of the wrong type (should not happen when `FirebaseAuth` is applied to the group).
 
-The handler is registered on the `/api/v1` group in `RegisterRoutes`:
+The handler is registered on the `/api/v1` group in `RegisterRoutes`. The verifier is stored on the `Handler` struct (via `NewHandler`) and guarded inline:
 ```go
 api := r.Group("/api/v1")
-if verifier != nil {
-    api.Use(middleware.FirebaseAuth(verifier))
+if h.verifier != nil {
+    api.Use(middleware.FirebaseAuth(h.verifier))
 }
 api.GET("/me", h.MeHandler)
 ```
 
 ## Disabling auth in development
 
-When `FIREBASE_PROJECT_ID` is not set `bootstrap.Run` skips Firebase initialisation and `app.Firebase` is `nil`. `server.NewServer` passes `app.Firebase` directly to `RegisterRoutes` as the `verifier` argument. When `verifier` is `nil` the `if verifier != nil` guard in `RegisterRoutes` skips `api.Use(middleware.FirebaseAuth(...))`, so `/api/v1/me` is reachable without a token.
+When `FIREBASE_PROJECT_ID` is not set `bootstrap.Run` skips Firebase initialisation and `app.Firebase` is `nil`. `server.NewServer` passes `app.Firebase` to `NewHandler` where it is stored as `h.verifier`. When `h.verifier` is `nil` the guard in `RegisterRoutes` skips `api.Use(middleware.FirebaseAuth(...))`, so `/api/v1/me` is reachable without a token.
 
 To enable auth locally set both `FIREBASE_PROJECT_ID` and `FIREBASE_SERVICE_ACCOUNT_JSON` in `backend/.env`.

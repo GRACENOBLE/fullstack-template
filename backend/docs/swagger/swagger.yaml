@@ -37,6 +37,27 @@ definitions:
       wait_duration:
         type: string
     type: object
+  handlers.registerFCMTokenRequest:
+    properties:
+      platform:
+        enum:
+        - android
+        - ios
+        - web
+        type: string
+      token:
+        type: string
+    required:
+    - platform
+    - token
+    type: object
+  handlers.unregisterFCMTokenRequest:
+    properties:
+      token:
+        type: string
+    required:
+    - token
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -70,6 +91,104 @@ paths:
       summary: Asynq job monitoring UI
       tags:
       - observability
+  /api/v1/fcm/register:
+    post:
+      consumes:
+      - application/json
+      description: Saves a device FCM registration token for the authenticated user.
+        If the token already exists it is upserted.
+      parameters:
+      - description: Token registration payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.registerFCMTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Register FCM token
+      tags:
+      - fcm
+  /api/v1/fcm/unregister:
+    delete:
+      consumes:
+      - application/json
+      description: Removes a device FCM registration token. Typically called on logout
+        or device change.
+      parameters:
+      - description: Token to remove
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.unregisterFCMTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Unregister FCM token
+      tags:
+      - fcm
   /api/v1/me:
     get:
       description: 'Returns the authenticated Firebase user''s decoded claims. Requires

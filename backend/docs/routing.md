@@ -37,7 +37,7 @@ h := handler.NewHandler(healthUC)
 
 return &http.Server{
     Addr:         fmt.Sprintf(":%d", app.Config.Port),
-    Handler:      h.RegisterRoutes(),
+    Handler:      h.RegisterRoutes(app.Config.RateLimitRPS, app.Config.RateLimitBurst),
     IdleTimeout:  time.Minute,
     ReadTimeout:  10 * time.Second,
     WriteTimeout: 30 * time.Second,
@@ -46,9 +46,10 @@ return &http.Server{
 
 ## Route registration
 All routes registered in `RegisterRoutes()` on `*Handler`, which returns `http.Handler`.
+`rps` and `burst` come from `bootstrap.Config` (env vars `RATE_LIMIT_RPS` / `RATE_LIMIT_BURST`); pass `rps=0` to disable.
 
 ```go
-func (h *Handler) RegisterRoutes() http.Handler {
+func (h *Handler) RegisterRoutes(rps float64, burst int) http.Handler {
     r := gin.New()
 
     // Gin's colorful logger locally; structured slog logger in staging/production.
@@ -57,6 +58,8 @@ func (h *Handler) RegisterRoutes() http.Handler {
     } else {
         r.Use(gin.Recovery(), middleware.Logger())
     }
+
+    r.Use(middleware.RateLimit(rps, burst))
 
     r.Use(cors.New(cors.Config{ ... }))
 

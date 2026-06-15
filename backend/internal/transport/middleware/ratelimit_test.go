@@ -62,6 +62,18 @@ func TestRateLimit_BlocksOverLimit(t *testing.T) {
 	}
 }
 
+func TestRateLimit_FractionalRPS_AllowsFirst(t *testing.T) {
+	// rps=0.1 → int(0.1)*5 == 0; without the burst clamp this would block every request.
+	// With clamp to 1, the first request must pass.
+	r := newTestRouter(0.1, 0)
+	req, _ := http.NewRequest("GET", "/", nil)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("fractional rps first request: got %d, want 200", rr.Code)
+	}
+}
+
 func TestRateLimit_PerIP(t *testing.T) {
 	// Each IP gets its own limiter; exhausting one IP does not affect another.
 	// RemoteAddr is what Gin's ClientIP() resolves to when no trusted proxy is

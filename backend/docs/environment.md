@@ -30,7 +30,7 @@ This runs on package init before any env var is read — no explicit `godotenv.L
 | `BLUEPRINT_DB_SCHEMA` | `bootstrap.go` | `public` | Postgres search_path schema |
 | `BLUEPRINT_DB_SSLMODE` | `bootstrap.go` | `disable` | Postgres SSL mode (`disable`, `require`, `verify-full`) |
 | `RATE_LIMIT_RPS` | `bootstrap.go` | `0` (disabled) | Max requests per second per IP. Set to `0` or omit to disable rate limiting. |
-| `RATE_LIMIT_BURST` | `bootstrap.go` | `RPS * 5` | Token-bucket burst capacity. Defaults to 5× RPS when omitted. |
+| `RATE_LIMIT_BURST` | `bootstrap.go` | `int(RPS) * 5`, min 1 | Token-bucket burst capacity. Derived as `int(RPS)*5` when omitted; clamped to 1 so fractional RPS values never block all traffic. |
 
 Variables marked **required** are validated by `bootstrap.validateConfig` at startup — the process exits before attempting a DB connection if any are missing.
 

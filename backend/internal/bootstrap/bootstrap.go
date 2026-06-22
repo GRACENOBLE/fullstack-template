@@ -17,6 +17,7 @@ import (
 
 	"backend/internal/infrastructure/cache/redis"
 	"backend/internal/infrastructure/database/postgres"
+	"backend/internal/infrastructure/email"
 	"backend/internal/infrastructure/queue"
 	"backend/internal/usecase"
 	"backend/pkg/firebase"
@@ -34,13 +35,14 @@ const (
 // App holds all initialised, validated shared dependencies.
 // Constructed once by Run and passed to the HTTP server.
 type App struct {
-	DB        *sql.DB
-	Cache     usecase.CacheService        // nil when REDIS_URL is not set
-	Enqueuer  usecase.Enqueuer            // nil when REDIS_URL is not set
-	Firebase  usecase.FirebaseAdminClient // nil when FIREBASE_PROJECT_ID is not set
-	FCMSender usecase.NotificationSender  // nil when FIREBASE_PROJECT_ID is not set
-	Config    Config
-	Log       *slog.Logger
+	DB          *sql.DB
+	Cache       usecase.CacheService        // nil when REDIS_URL is not set
+	Enqueuer    usecase.Enqueuer            // nil when REDIS_URL is not set
+	Firebase    usecase.FirebaseAdminClient // nil when FIREBASE_PROJECT_ID is not set
+	FCMSender   usecase.NotificationSender  // nil when FIREBASE_PROJECT_ID is not set
+	EmailSender usecase.EmailSender         // nil when MAILJET_API_KEY is not set
+	Config      Config
+	Log         *slog.Logger
 }
 
 // Config holds all validated configuration values read from environment variables.
@@ -54,6 +56,10 @@ type Config struct {
 	FirebaseProjectID          string
 	FirebaseServiceAccountJSON string
 	SentryDSN                  string
+	MailjetAPIKey              string
+	MailjetSecretKey           string
+	FromEmail                  string
+	FromName                   string
 }
 
 // ConfigError is returned when required configuration is absent or invalid.
@@ -138,16 +144,28 @@ func Run(ctx context.Context) (*App, error) {
 		log.Info("bootstrap: firebase clients initialised", "project_id", cfg.FirebaseProjectID)
 	}
 
+	var emailSender usecase.EmailSender
+	if cfg.MailjetAPIKey != "" && cfg.MailjetSecretKey != "" {
+		emailSender = email.NewMailjetSender(
+			cfg.MailjetAPIKey,
+			cfg.MailjetSecretKey,
+			cfg.FromEmail,
+			cfg.FromName,
+		)
+		log.Info("bootstrap: mailjet email sender initialised", "from_email", cfg.FromEmail)
+	}
+
 	log.Info("bootstrap: all checks passed — ready to serve")
 
 	return &App{
-		DB:        db,
-		Cache:     cache,
-		Enqueuer:  enqueuer,
-		Firebase:  firebaseClient,
-		FCMSender: fcmSender,
-		Config:    cfg,
-		Log:       log,
+		DB:          db,
+		Cache:       cache,
+		Enqueuer:    enqueuer,
+		Firebase:    firebaseClient,
+		FCMSender:   fcmSender,
+		EmailSender: emailSender,
+		Config:      cfg,
+		Log:         log,
 	}, nil
 }
 
@@ -182,6 +200,10 @@ func loadConfig() Config {
 		FirebaseProjectID:          os.Getenv("FIREBASE_PROJECT_ID"),
 		FirebaseServiceAccountJSON: os.Getenv("FIREBASE_SERVICE_ACCOUNT_JSON"),
 		SentryDSN:                  os.Getenv("SENTRY_DSN"),
+		MailjetAPIKey:              os.Getenv("MAILJET_API_KEY"),
+		MailjetSecretKey:           os.Getenv("MAILJET_SECRET_KEY"),
+		FromEmail:                  os.Getenv("FROM_EMAIL"),
+		FromName:                   os.Getenv("FROM_NAME"),
 		DB: postgres.DBConfig{
 			Host:     os.Getenv("BLUEPRINT_DB_HOST"),
 			Port:     os.Getenv("BLUEPRINT_DB_PORT"),
@@ -210,6 +232,13 @@ func validateConfig(cfg Config, log *slog.Logger) error {
 	requireNonEmpty("BLUEPRINT_DB_DATABASE", cfg.DB.Database)
 	requireNonEmpty("BLUEPRINT_DB_USERNAME", cfg.DB.Username)
 	requireNonEmpty("BLUEPRINT_DB_PASSWORD", cfg.DB.Password)
+
+	// Mailjet: if any credential is provided, the full set is required.
+	if cfg.MailjetAPIKey != "" || cfg.MailjetSecretKey != "" || cfg.FromEmail != "" {
+		requireNonEmpty("MAILJET_API_KEY", cfg.MailjetAPIKey)
+		requireNonEmpty("MAILJET_SECRET_KEY", cfg.MailjetSecretKey)
+		requireNonEmpty("FROM_EMAIL", cfg.FromEmail)
+	}
 
 	if len(issues) > 0 {
 		for _, issue := range issues {

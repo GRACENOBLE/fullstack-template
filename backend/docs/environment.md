@@ -1,6 +1,6 @@
 ---
 topic: environment
-last_verified: 2026-06-15
+last_verified: 2026-06-23
 sources:
   - .env
   - internal/bootstrap/bootstrap.go
@@ -36,6 +36,11 @@ This runs on package init before any env var is read — no explicit `godotenv.L
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | `bootstrap.go`, `pkg/firebase/admin.go` | — | Raw JSON content of a Firebase service account key file. When omitted the SDK falls back to Application Default Credentials (ADC) — appropriate for GCP-hosted deployments. Only relevant when `FIREBASE_PROJECT_ID` is set. |
 | `REDIS_URL` | `bootstrap.go` | — | Redis connection URL. When omitted or empty, cache/Redis initialization is skipped and the app runs without Redis. |
 | `BLUEPRINT_WS_ALLOWED_ORIGIN` | `internal/transport/handlers/ws_handler.go` | — | Allowed origin for WebSocket CORS checks in staging/production. When omitted, WebSocket origin validation is skipped (local dev). |
+| `SENTRY_DSN` | `bootstrap.go`, `internal/transport/handlers/routes.go` | — | Sentry error-tracking DSN. When omitted, the Sentry middleware is not registered. |
+| `MAILJET_API_KEY` | `bootstrap.go` | — | Mailjet API key. When omitted (or empty), `App.EmailSender` is `nil` and no email is sent. |
+| `MAILJET_SECRET_KEY` | `bootstrap.go` | — | Mailjet secret key. Must be provided alongside `MAILJET_API_KEY`. |
+| `FROM_EMAIL` | `bootstrap.go` | — | Verified Mailjet sender address (e.g. `no-reply@example.com`). Required when `MAILJET_API_KEY` and `MAILJET_SECRET_KEY` are set; startup fails if omitted. |
+| `FROM_NAME` | `bootstrap.go` | — | Sender display name (e.g. `MyApp`). Only read when both Mailjet credentials are set. |
 
 Variables marked **required** are validated by `bootstrap.validateConfig` at startup — the process exits before attempting a DB connection if any are missing.
 

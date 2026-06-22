@@ -16,6 +16,7 @@ type Handler struct {
 	queueUI      http.Handler               // nil disables /admin/queues route
 	fcmSender    usecase.NotificationSender // nil when Firebase is not configured
 	fcmTokenRepo usecase.FCMTokenRepository // nil when Firebase is not configured
+	emailSender  usecase.EmailSender        // nil when MAILJET_API_KEY is not set
 }
 
 // NewHandler constructs a Handler with all required use cases.
@@ -27,6 +28,7 @@ func NewHandler(
 	queueUI http.Handler,
 	fcmSender usecase.NotificationSender,
 	fcmTokenRepo usecase.FCMTokenRepository,
+	emailSender usecase.EmailSender,
 ) *Handler {
 	return &Handler{
 		healthUC:     healthUC,
@@ -36,5 +38,6 @@ func NewHandler(
 		queueUI:      queueUI,
 		fcmSender:    fcmSender,
 		fcmTokenRepo: fcmTokenRepo,
+		emailSender:  emailSender,
 	}
 }

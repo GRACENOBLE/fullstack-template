@@ -19,6 +19,7 @@ type mockFCMTokenRepo struct {
 	savedUserID   string
 	savedToken    string
 	savedPlatform string
+	deletedUserID string
 	deletedToken  string
 	tokens        []domain.FCMToken
 	saveErr       error
@@ -32,8 +33,8 @@ func (m *mockFCMTokenRepo) SaveToken(_ context.Context, userID, token, platform 
 func (m *mockFCMTokenRepo) GetTokensByUserID(_ context.Context, _ string) ([]domain.FCMToken, error) {
 	return m.tokens, nil
 }
-func (m *mockFCMTokenRepo) DeleteToken(_ context.Context, token string) error {
-	m.deletedToken = token
+func (m *mockFCMTokenRepo) DeleteToken(_ context.Context, userID, token string) error {
+	m.deletedUserID, m.deletedToken = userID, token
 	return m.deleteErr
 }
 
@@ -104,6 +105,9 @@ func TestUnregisterFCMToken_Success(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if repo.deletedUserID != "uid123" {
+		t.Errorf("expected deletedUserID uid123, got %q", repo.deletedUserID)
 	}
 	if repo.deletedToken != "del-token" {
 		t.Errorf("expected del-token to be deleted, got %q", repo.deletedToken)

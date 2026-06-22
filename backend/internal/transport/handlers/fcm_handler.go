@@ -70,7 +70,8 @@ func (h *Handler) RegisterFCMToken(c *gin.Context) {
 // @Router      /api/v1/fcm/unregister [delete]
 func (h *Handler) UnregisterFCMToken(c *gin.Context) {
 	val, _ := c.Get(middleware.FirebaseClaimsKey)
-	if _, ok := val.(*usecase.FirebaseToken); !ok {
+	claims, ok := val.(*usecase.FirebaseToken)
+	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
@@ -81,7 +82,7 @@ func (h *Handler) UnregisterFCMToken(c *gin.Context) {
 		return
 	}
 
-	if err := h.fcmTokenRepo.DeleteToken(c.Request.Context(), req.Token); err != nil {
+	if err := h.fcmTokenRepo.DeleteToken(c.Request.Context(), claims.UID, req.Token); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to remove token"})
 		return
 	}

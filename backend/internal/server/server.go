@@ -34,7 +34,11 @@ func NewServer(app *bootstrap.App, hub *ws.Hub) (*http.Server, error) {
 
 	healthRepo := postgres.NewHealthRepository(app.DB)
 	healthUC := usecase.NewHealthUseCase(healthRepo)
-	fcmTokenRepo := postgres.NewFCMTokenRepository(app.DB)
+
+	var fcmTokenRepo *postgres.FCMTokenRepository
+	if app.Firebase != nil {
+		fcmTokenRepo = postgres.NewFCMTokenRepository(app.DB)
+	}
 
 	// Build Asynqmon UI handler when Redis is available.
 	var queueUI http.Handler

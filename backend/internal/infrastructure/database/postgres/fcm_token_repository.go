@@ -52,10 +52,10 @@ func (r *FCMTokenRepository) GetTokensByUserID(ctx context.Context, userID strin
 	return tokens, rows.Err()
 }
 
-// DeleteToken removes a single FCM token, typically called on logout.
-func (r *FCMTokenRepository) DeleteToken(ctx context.Context, token string) error {
-	const q = `DELETE FROM fcm_tokens WHERE token = $1`
-	if _, err := r.db.ExecContext(ctx, q, token); err != nil {
+// DeleteToken removes a single FCM token scoped to the owning user, typically called on logout.
+func (r *FCMTokenRepository) DeleteToken(ctx context.Context, userID, token string) error {
+	const q = `DELETE FROM fcm_tokens WHERE user_id = $1 AND token = $2`
+	if _, err := r.db.ExecContext(ctx, q, userID, token); err != nil {
 		return fmt.Errorf("fcm_token_repository: delete: %w", err)
 	}
 	return nil

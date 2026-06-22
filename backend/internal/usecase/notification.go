@@ -16,5 +16,5 @@ type NotificationSender interface {
 type FCMTokenRepository interface {
 	SaveToken(ctx context.Context, userID, token, platform string) error
 	GetTokensByUserID(ctx context.Context, userID string) ([]domain.FCMToken, error)
-	DeleteToken(ctx context.Context, token string) error
+	DeleteToken(ctx context.Context, userID, token string) error
 }

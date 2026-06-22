@@ -23,21 +23,27 @@ export function useFCM({
 
     requestPermissionAndGetToken().then(async (token) => {
       if (!token || cancelled) return
-      await fetch('/api/v1/fcm/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
-        },
-        body: JSON.stringify({ token, platform: 'web' }),
-      })
+      try {
+        const response = await fetch('/api/v1/fcm/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+          },
+          body: JSON.stringify({ token, platform: 'web' }),
+        })
+        if (!response.ok) {
+          console.error('FCM token registration failed:', response.status)
+        }
+      } catch (err) {
+        console.error('FCM token registration error:', err)
+      }
     })
 
-    if (!onMessage) return
-    const unsub = onForegroundMessage(onMessage)
+    const unsub = onMessage ? onForegroundMessage(onMessage) : null
     return () => {
       cancelled = true
-      unsub()
+      unsub?.()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idToken])

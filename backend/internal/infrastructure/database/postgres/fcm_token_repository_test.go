@@ -57,8 +57,14 @@ func TestFCMTokenRepository_Upsert(t *testing.T) {
 		t.Fatalf("second SaveToken (upsert): %v", err)
 	}
 
-	tokensA, _ := repo.GetTokensByUserID(ctx, "userA")
-	tokensB, _ := repo.GetTokensByUserID(ctx, "userB")
+	tokensA, err := repo.GetTokensByUserID(ctx, "userA")
+	if err != nil {
+		t.Fatalf("GetTokensByUserID(userA): %v", err)
+	}
+	tokensB, err := repo.GetTokensByUserID(ctx, "userB")
+	if err != nil {
+		t.Fatalf("GetTokensByUserID(userB): %v", err)
+	}
 	if len(tokensA) != 0 {
 		t.Errorf("expected userA to have 0 tokens after upsert, got %d", len(tokensA))
 	}
@@ -72,14 +78,42 @@ func TestFCMTokenRepository_Delete(t *testing.T) {
 	ctx := context.Background()
 	repo := NewFCMTokenRepository(testDB)
 
-	_ = repo.SaveToken(ctx, "user2", "tok-del", "ios")
-	if err := repo.DeleteToken(ctx, "tok-del"); err != nil {
+	if err := repo.SaveToken(ctx, "user2", "tok-del", "ios"); err != nil {
+		t.Fatalf("SaveToken: %v", err)
+	}
+	if err := repo.DeleteToken(ctx, "user2", "tok-del"); err != nil {
 		t.Fatalf("DeleteToken: %v", err)
 	}
 
-	tokens, _ := repo.GetTokensByUserID(ctx, "user2")
+	tokens, err := repo.GetTokensByUserID(ctx, "user2")
+	if err != nil {
+		t.Fatalf("GetTokensByUserID: %v", err)
+	}
 	if len(tokens) != 0 {
 		t.Errorf("expected 0 tokens after delete, got %d", len(tokens))
+	}
+}
+
+func TestFCMTokenRepository_DeleteOtherUser(t *testing.T) {
+	setupFCMTokensTable(t)
+	ctx := context.Background()
+	repo := NewFCMTokenRepository(testDB)
+
+	if err := repo.SaveToken(ctx, "user3", "tok-other", "web"); err != nil {
+		t.Fatalf("SaveToken: %v", err)
+	}
+
+	// Attempt to delete using a different userID — must be a no-op.
+	if err := repo.DeleteToken(ctx, "attacker", "tok-other"); err != nil {
+		t.Fatalf("DeleteToken with wrong userID returned unexpected error: %v", err)
+	}
+
+	tokens, err := repo.GetTokensByUserID(ctx, "user3")
+	if err != nil {
+		t.Fatalf("GetTokensByUserID: %v", err)
+	}
+	if len(tokens) != 1 {
+		t.Errorf("expected token to remain after cross-user delete attempt, got %d tokens", len(tokens))
 	}
 }
 

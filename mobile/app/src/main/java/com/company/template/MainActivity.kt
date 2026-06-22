@@ -1,6 +1,7 @@
 package com.company.template
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -28,6 +29,8 @@ fun shouldInitSentry(dsn: String): Boolean = dsn.isNotBlank()
 
 class MainActivity : ComponentActivity() {
 
+    // activity-compose 1.8.0 transitively pulls in Fragment 1.6+; lint can't detect this
+    @SuppressLint("InvalidFragmentVersionForActivityResult")
     private val requestNotificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* no-op */ }
 

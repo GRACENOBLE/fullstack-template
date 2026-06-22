@@ -1,6 +1,6 @@
 ---
 topic: bootstrap
-last_verified: 2026-06-15
+last_verified: 2026-06-23
 sources:
   - internal/bootstrap/bootstrap.go
   - internal/server/server.go
@@ -15,14 +15,16 @@ sources:
 ## App struct
 ```go
 type App struct {
-    DB       *sql.DB
-    Cache    usecase.CacheService        // nil when REDIS_URL is not set
-    Firebase usecase.FirebaseAdminClient // nil when FIREBASE_PROJECT_ID is not set
-    Config   Config
-    Log      *slog.Logger
+    DB        *sql.DB
+    Cache     usecase.CacheService        // nil when REDIS_URL is not set
+    Enqueuer  usecase.Enqueuer            // nil when REDIS_URL is not set
+    Firebase  usecase.FirebaseAdminClient // nil when FIREBASE_PROJECT_ID is not set
+    FCMSender usecase.NotificationSender  // nil when FIREBASE_PROJECT_ID is not set
+    Config    Config
+    Log       *slog.Logger
 }
 ```
-`App` is constructed once by `Run` and passed to `server.NewServer`. Nothing re-initialises dependencies after this point. Optional fields (`Cache`, `Firebase`) are nil when their corresponding env vars are absent.
+`App` is constructed once by `Run` and passed to `server.NewServer`. Nothing re-initialises dependencies after this point. Optional fields (`Cache`, `Enqueuer`, `Firebase`, `FCMSender`) are nil when their corresponding env vars are absent.
 
 ## Config struct
 ```go
@@ -47,9 +49,10 @@ type Config struct {
 2. Validate required fields via `validateConfig()` — fast, no I/O
 3. Open `*sql.DB` via `postgres.NewPostgresDB(cfg.DB)`
 4. Probe Postgres with `probeWithRetry` under a 60-second total timeout
-5. Init Redis via `redis.New(cfg.RedisURL)` and probe it — skipped when `REDIS_URL` is empty
-6. Init Firebase Admin SDK via `firebase.NewAuthClient(ctx, projectID, credentialsJSON)` — skipped when `FIREBASE_PROJECT_ID` is empty
-7. Return `*App` on success; return a non-nil error on any failure
+5. Init Redis cache via `redis.New(cfg.RedisURL)` and probe it — skipped when `REDIS_URL` is empty
+6. Init Asynq enqueuer via `queue.NewClient(cfg.RedisURL)` — skipped when `REDIS_URL` is empty
+7. Init Firebase app via `firebase.NewApp(ctx, ...)`, then init Auth client (`firebase.NewAuthClient`) and FCM messaging client (`firebase.NewMessagingClient`) from the same app instance — all skipped when `FIREBASE_PROJECT_ID` is empty
+8. Return `*App` on success; return a non-nil error on any failure
 
 ```go
 ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

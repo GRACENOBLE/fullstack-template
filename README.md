@@ -1,6 +1,6 @@
 # Fullstack Template
 
-A production-ready fullstack starter. Clone it, rename things, and focus on your business logic — the infrastructure is already wired. Ships with a Go + Gin backend, Next.js 16 web app, Android mobile app (Kotlin + Compose), PostgreSQL, Docker Compose, hot reload, integration testing, and a full agentic development setup for AI coding assistants.
+A production-ready fullstack starter. Clone it, rename things, and focus on your business logic, the infrastructure is already wired. Save on AI tokens too. Ships with a Go + Gin backend, Next.js 16 web app, Android mobile app (Kotlin + Compose), PostgreSQL, Docker Compose, hot reload, integration testing, and a full agentic development setup for AI coding assistants.
 
 ## Table of Contents
 

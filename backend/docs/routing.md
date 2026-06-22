@@ -1,6 +1,6 @@
 ---
 topic: routing
-last_verified: 2026-06-15
+last_verified: 2026-06-23
 sources:
   - internal/transport/handlers/handler.go
   - internal/transport/handlers/routes.go
@@ -18,25 +18,49 @@ sources:
 ```go
 // internal/transport/handlers/handler.go
 type Handler struct {
-    healthUC usecase.HealthUseCase
-    verifier usecase.FirebaseTokenVerifier  // nil disables auth (dev only)
-    hub      *ws.Hub
+    healthUC     usecase.HealthUseCase
+    verifier     usecase.FirebaseTokenVerifier // nil disables auth (dev only)
+    hub          *ws.Hub
+    enqueuer     usecase.Enqueuer           // nil when REDIS_URL is not set
+    queueUI      http.Handler               // nil disables /admin/queues route
+    fcmSender    usecase.NotificationSender // nil when Firebase is not configured
+    fcmTokenRepo usecase.FCMTokenRepository // nil when Firebase is not configured
 }
 
-func NewHandler(healthUC usecase.HealthUseCase, verifier usecase.FirebaseTokenVerifier, hub *ws.Hub) *Handler {
-    return &Handler{healthUC: healthUC, verifier: verifier, hub: hub}
-}
+func NewHandler(
+    healthUC usecase.HealthUseCase,
+    verifier usecase.FirebaseTokenVerifier,
+    hub *ws.Hub,
+    enqueuer usecase.Enqueuer,
+    queueUI http.Handler,
+    fcmSender usecase.NotificationSender,
+    fcmTokenRepo usecase.FCMTokenRepository,
+) *Handler
 ```
-The `Handler` struct holds use case interfaces and infrastructure dependencies — not `*sql.DB` directly. `verifier` is stored on the struct (not passed to `RegisterRoutes`) so the WebSocket handler can read it inline for query-param auth.
+The `Handler` struct holds use case interfaces and infrastructure dependencies — not `*sql.DB` directly. `verifier` is stored on the struct (not passed to `RegisterRoutes`) so the WebSocket handler can read it inline for query-param auth. `fcmTokenRepo` and `fcmSender` are nil when `FIREBASE_PROJECT_ID` is not set; their routes are only registered when non-nil.
 
 ## Wiring (server.go)
 `internal/server/server.go` contains `NewServer(app *bootstrap.App, hub *ws.Hub) (*http.Server, error)` — wiring only, no logic.
-It receives the already-validated `*bootstrap.App` (which holds `*sql.DB`, `Cache`, `Firebase`, and `Config`) and a `*ws.Hub`, constructs the repository, use case, and handler in order, then returns a configured `*http.Server`. Errors from initialisation steps are returned to the caller.
+It receives the already-validated `*bootstrap.App` (which holds `*sql.DB`, `Cache`, `Enqueuer`, `Firebase`, `FCMSender`, and `Config`) and a `*ws.Hub`, constructs the repository, use case, and handler in order, then returns a configured `*http.Server`. Errors from initialisation steps are returned to the caller.
 
 ```go
 healthRepo := postgres.NewHealthRepository(app.DB)
 healthUC := usecase.NewHealthUseCase(healthRepo)
-h := handlers.NewHandler(healthUC, app.Firebase, hub)
+
+var fcmTokenRepo *postgres.FCMTokenRepository
+if app.Firebase != nil {
+    fcmTokenRepo = postgres.NewFCMTokenRepository(app.DB)
+}
+
+var queueUI http.Handler
+if app.Config.RedisURL != "" {
+    // parse URL and build asynqmon.New(...)
+}
+
+h := handlers.NewHandler(healthUC, app.Firebase, hub, app.Enqueuer, queueUI, app.FCMSender, fcmTokenRepo)
+
+// Register DB pool metrics collector (AlreadyRegisteredError is silenced).
+prometheus.Register(postgres.NewDBStatsCollector(app.DB))
 
 return &http.Server{
     Addr:         fmt.Sprintf(":%d", app.Config.Port),
@@ -48,13 +72,15 @@ return &http.Server{
 ```
 
 ## Route registration
-All routes registered in `RegisterRoutes()` on `*Handler`, which returns `http.Handler`.
+All routes are registered in `RegisterRoutes()` on `*Handler`, which returns `http.Handler`.
 `rps` and `burst` come from `bootstrap.Config` (env vars `RATE_LIMIT_RPS` / `RATE_LIMIT_BURST`); pass `rps=0` to disable.
 `h.verifier` (set via `NewHandler`) controls Firebase auth — the verifier is read from the struct, not passed to `RegisterRoutes`; a `nil` verifier skips Firebase auth (development only — see [auth](auth.md)).
 
 ```go
 func (h *Handler) RegisterRoutes(rps float64, burst int, sentryDSN string) http.Handler {
     r := gin.New()
+
+    r.Use(middleware.SentryMiddleware(sentryDSN))
 
     // Gin's colorful logger locally; structured slog logger in staging/production.
     if gin.Mode() == gin.DebugMode {
@@ -63,21 +89,40 @@ func (h *Handler) RegisterRoutes(rps float64, burst int, sentryDSN string) http.
         r.Use(gin.Recovery(), middleware.Logger())
     }
 
+    r.Use(middleware.PrometheusMiddleware())
     r.Use(middleware.RateLimit(rps, burst))
 
     r.Use(cors.New(cors.Config{ ... }))
 
     r.GET("/", h.HelloWorldHandler)
     r.GET("/health", h.HealthHandler)
-    r.GET("/ws", h.WsHandler)          // WebSocket upgrade — auth via ?token= query param
+    r.GET("/ws", h.WsHandler)
+
+    // /metrics restricted to loopback/RFC 1918 in staging/production.
+    if gin.Mode() == gin.ReleaseMode {
+        r.GET("/metrics", middleware.LocalNetworkOnly(), gin.WrapH(promhttp.Handler()))
+    } else {
+        r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+    }
 
     r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+    // Asynqmon job-monitoring UI — debug/local only.
+    if gin.Mode() == gin.DebugMode && h.queueUI != nil {
+        r.GET("/admin/queues", gin.WrapH(h.queueUI))
+        r.Any("/admin/queues/*path", gin.WrapH(h.queueUI))
+    }
 
     api := r.Group("/api/v1")
     if h.verifier != nil {
         api.Use(middleware.FirebaseAuth(h.verifier))
     }
     api.GET("/me", h.MeHandler)
+
+    if h.fcmTokenRepo != nil {
+        api.POST("/fcm/register", h.RegisterFCMToken)
+        api.DELETE("/fcm/unregister", h.UnregisterFCMToken)
+    }
 
     return r
 }
@@ -109,8 +154,14 @@ Allowed methods: GET, POST, PUT, DELETE, OPTIONS, PATCH.
 | GET | `/` | none | `HelloWorldHandler` — returns `{"message": "Hello World"}` | `hello_handler.go` |
 | GET | `/health` | none | `HealthHandler` — returns `HealthStats`; 503 when DB is down | `health_handler.go` |
 | GET | `/ws` | `?token=` query param | `WsHandler` — upgrades to WebSocket; 401 when token missing/invalid | `ws_handler.go` |
-| GET | `/metrics` | `LocalNetworkOnly()` | Prometheus scrape endpoint; restricted to loopback/RFC 1918 in staging/production | `metrics_handler.go` |
+| GET | `/metrics` | `LocalNetworkOnly()` in release mode | Prometheus scrape endpoint; unrestricted in debug mode | `routes.go` |
+| GET | `/swagger/*any` | none | Swagger UI | `routes.go` |
+| GET | `/admin/queues` | none (debug mode only) | Asynqmon job-monitoring UI | `routes.go` |
 | GET | `/api/v1/me` | FirebaseAuth header | `MeHandler` — returns verified `FirebaseToken` claims | `auth_handler.go` |
+| POST | `/api/v1/fcm/register` | FirebaseAuth header | `RegisterFCMToken` — stores device FCM token | `fcm_handler.go` |
+| DELETE | `/api/v1/fcm/unregister` | FirebaseAuth header | `UnregisterFCMToken` — removes device FCM token | `fcm_handler.go` |
+
+FCM routes are only registered when `h.fcmTokenRepo != nil` (i.e., `FIREBASE_PROJECT_ID` is set).
 
 ## Graceful shutdown
 Wired in `cmd/api/main.go` via `signal.NotifyContext` for SIGINT/SIGTERM.

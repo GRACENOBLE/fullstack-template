@@ -15,16 +15,17 @@ sources:
 ## App struct
 ```go
 type App struct {
-    DB        *sql.DB
-    Cache     usecase.CacheService        // nil when REDIS_URL is not set
-    Enqueuer  usecase.Enqueuer            // nil when REDIS_URL is not set
-    Firebase  usecase.FirebaseAdminClient // nil when FIREBASE_PROJECT_ID is not set
-    FCMSender usecase.NotificationSender  // nil when FIREBASE_PROJECT_ID is not set
-    Config    Config
-    Log       *slog.Logger
+    DB          *sql.DB
+    Cache       usecase.CacheService        // nil when REDIS_URL is not set
+    Enqueuer    usecase.Enqueuer            // nil when REDIS_URL is not set
+    Firebase    usecase.FirebaseAdminClient // nil when FIREBASE_PROJECT_ID is not set
+    FCMSender   usecase.NotificationSender  // nil when FIREBASE_PROJECT_ID is not set
+    EmailSender usecase.EmailSender         // nil when MAILJET_API_KEY/SECRET_KEY are not set
+    Config      Config
+    Log         *slog.Logger
 }
 ```
-`App` is constructed once by `Run` and passed to `server.NewServer`. Nothing re-initialises dependencies after this point. Optional fields (`Cache`, `Enqueuer`, `Firebase`, `FCMSender`) are nil when their corresponding env vars are absent.
+`App` is constructed once by `Run` and passed to `server.NewServer`. Nothing re-initialises dependencies after this point. Optional fields (`Cache`, `Enqueuer`, `Firebase`, `FCMSender`, `EmailSender`) are nil when their corresponding env vars are absent.
 
 ## Config struct
 ```go
@@ -52,7 +53,8 @@ type Config struct {
 5. Init Redis cache via `redis.New(cfg.RedisURL)` and probe it — skipped when `REDIS_URL` is empty
 6. Init Asynq enqueuer via `queue.NewClient(cfg.RedisURL)` — skipped when `REDIS_URL` is empty
 7. Init Firebase app via `firebase.NewApp(ctx, ...)`, then init Auth client (`firebase.NewAuthClient`) and FCM messaging client (`firebase.NewMessagingClient`) from the same app instance — all skipped when `FIREBASE_PROJECT_ID` is empty
-8. Return `*App` on success; return a non-nil error on any failure
+8. Init Mailjet email sender via `email.NewMailjetSender(...)` — skipped when `MAILJET_API_KEY` or `MAILJET_SECRET_KEY` is empty; startup fails if only a partial Mailjet config is provided
+9. Return `*App` on success; return a non-nil error on any failure
 
 ```go
 ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

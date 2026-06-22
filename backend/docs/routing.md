@@ -25,6 +25,7 @@ type Handler struct {
     queueUI      http.Handler               // nil disables /admin/queues route
     fcmSender    usecase.NotificationSender // nil when Firebase is not configured
     fcmTokenRepo usecase.FCMTokenRepository // nil when Firebase is not configured
+    emailSender  usecase.EmailSender        // nil when MAILJET_API_KEY/SECRET_KEY are not set
 }
 
 func NewHandler(
@@ -35,6 +36,7 @@ func NewHandler(
     queueUI http.Handler,
     fcmSender usecase.NotificationSender,
     fcmTokenRepo usecase.FCMTokenRepository,
+    emailSender usecase.EmailSender,
 ) *Handler
 ```
 The `Handler` struct holds use case interfaces and infrastructure dependencies — not `*sql.DB` directly. `verifier` is stored on the struct (not passed to `RegisterRoutes`) so the WebSocket handler can read it inline for query-param auth. `fcmTokenRepo` and `fcmSender` are nil when `FIREBASE_PROJECT_ID` is not set; their routes are only registered when non-nil.

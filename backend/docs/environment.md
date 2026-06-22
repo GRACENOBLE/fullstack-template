@@ -39,8 +39,8 @@ This runs on package init before any env var is read — no explicit `godotenv.L
 | `SENTRY_DSN` | `bootstrap.go`, `internal/transport/handlers/routes.go` | — | Sentry error-tracking DSN. When omitted, the Sentry middleware is not registered. |
 | `MAILJET_API_KEY` | `bootstrap.go` | — | Mailjet API key. When omitted (or empty), `App.EmailSender` is `nil` and no email is sent. |
 | `MAILJET_SECRET_KEY` | `bootstrap.go` | — | Mailjet secret key. Must be provided alongside `MAILJET_API_KEY`. |
-| `FROM_EMAIL` | `bootstrap.go` | — | Verified Mailjet sender address (e.g. `no-reply@example.com`). Only read when `MAILJET_API_KEY` is set. |
-| `FROM_NAME` | `bootstrap.go` | — | Sender display name (e.g. `MyApp`). Only read when `MAILJET_API_KEY` is set. |
+| `FROM_EMAIL` | `bootstrap.go` | — | Verified Mailjet sender address (e.g. `no-reply@example.com`). Required when `MAILJET_API_KEY` and `MAILJET_SECRET_KEY` are set; startup fails if omitted. |
+| `FROM_NAME` | `bootstrap.go` | — | Sender display name (e.g. `MyApp`). Only read when both Mailjet credentials are set. |
 
 Variables marked **required** are validated by `bootstrap.validateConfig` at startup — the process exits before attempting a DB connection if any are missing.
 

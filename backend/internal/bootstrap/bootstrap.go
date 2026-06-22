@@ -233,6 +233,13 @@ func validateConfig(cfg Config, log *slog.Logger) error {
 	requireNonEmpty("BLUEPRINT_DB_USERNAME", cfg.DB.Username)
 	requireNonEmpty("BLUEPRINT_DB_PASSWORD", cfg.DB.Password)
 
+	// Mailjet: if any credential is provided, the full set is required.
+	if cfg.MailjetAPIKey != "" || cfg.MailjetSecretKey != "" || cfg.FromEmail != "" {
+		requireNonEmpty("MAILJET_API_KEY", cfg.MailjetAPIKey)
+		requireNonEmpty("MAILJET_SECRET_KEY", cfg.MailjetSecretKey)
+		requireNonEmpty("FROM_EMAIL", cfg.FromEmail)
+	}
+
 	if len(issues) > 0 {
 		for _, issue := range issues {
 			log.Error("bootstrap: config invalid", "detail", issue)

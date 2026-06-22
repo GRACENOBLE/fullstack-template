@@ -19,6 +19,7 @@ import (
 	"backend/internal/infrastructure/database/postgres"
 	"backend/internal/infrastructure/email"
 	"backend/internal/infrastructure/queue"
+	"backend/internal/infrastructure/storage/r2"
 	"backend/internal/usecase"
 	"backend/pkg/firebase"
 	"backend/pkg/logger"
@@ -35,14 +36,15 @@ const (
 // App holds all initialised, validated shared dependencies.
 // Constructed once by Run and passed to the HTTP server.
 type App struct {
-	DB          *sql.DB
-	Cache       usecase.CacheService        // nil when REDIS_URL is not set
-	Enqueuer    usecase.Enqueuer            // nil when REDIS_URL is not set
-	Firebase    usecase.FirebaseAdminClient // nil when FIREBASE_PROJECT_ID is not set
-	FCMSender   usecase.NotificationSender  // nil when FIREBASE_PROJECT_ID is not set
-	EmailSender usecase.EmailSender         // nil when MAILJET_API_KEY is not set
-	Config      Config
-	Log         *slog.Logger
+	DB             *sql.DB
+	Cache          usecase.CacheService        // nil when REDIS_URL is not set
+	Enqueuer       usecase.Enqueuer            // nil when REDIS_URL is not set
+	Firebase       usecase.FirebaseAdminClient // nil when FIREBASE_PROJECT_ID is not set
+	FCMSender      usecase.NotificationSender  // nil when FIREBASE_PROJECT_ID is not set
+	EmailSender    usecase.EmailSender         // nil when MAILJET_API_KEY is not set
+	StorageService usecase.StorageService      // nil when R2_ACCOUNT_ID is not set
+	Config         Config
+	Log            *slog.Logger
 }
 
 // Config holds all validated configuration values read from environment variables.
@@ -60,6 +62,11 @@ type Config struct {
 	MailjetSecretKey           string
 	FromEmail                  string
 	FromName                   string
+	R2AccountID                string
+	R2AccessKey                string
+	R2SecretKey                string
+	R2Bucket                   string
+	R2PublicURL                string
 }
 
 // ConfigError is returned when required configuration is absent or invalid.
@@ -155,17 +162,28 @@ func Run(ctx context.Context) (*App, error) {
 		log.Info("bootstrap: mailjet email sender initialised", "from_email", cfg.FromEmail)
 	}
 
+	var storageService usecase.StorageService
+	if cfg.R2AccountID != "" {
+		svc, err := r2.New(cfg.R2AccountID, cfg.R2AccessKey, cfg.R2SecretKey, cfg.R2Bucket, cfg.R2PublicURL)
+		if err != nil {
+			return nil, fmt.Errorf("bootstrap: r2: %w", err)
+		}
+		storageService = svc
+		log.Info("bootstrap: R2 storage client initialised", "bucket", cfg.R2Bucket)
+	}
+
 	log.Info("bootstrap: all checks passed — ready to serve")
 
 	return &App{
-		DB:          db,
-		Cache:       cache,
-		Enqueuer:    enqueuer,
-		Firebase:    firebaseClient,
-		FCMSender:   fcmSender,
-		EmailSender: emailSender,
-		Config:      cfg,
-		Log:         log,
+		DB:             db,
+		Cache:          cache,
+		Enqueuer:       enqueuer,
+		Firebase:       firebaseClient,
+		FCMSender:      fcmSender,
+		EmailSender:    emailSender,
+		StorageService: storageService,
+		Config:         cfg,
+		Log:            log,
 	}, nil
 }
 
@@ -204,6 +222,11 @@ func loadConfig() Config {
 		MailjetSecretKey:           os.Getenv("MAILJET_SECRET_KEY"),
 		FromEmail:                  os.Getenv("FROM_EMAIL"),
 		FromName:                   os.Getenv("FROM_NAME"),
+		R2AccountID:                os.Getenv("R2_ACCOUNT_ID"),
+		R2AccessKey:                os.Getenv("R2_ACCESS_KEY"),
+		R2SecretKey:                os.Getenv("R2_SECRET_KEY"),
+		R2Bucket:                   os.Getenv("R2_BUCKET"),
+		R2PublicURL:                os.Getenv("R2_PUBLIC_URL"),
 		DB: postgres.DBConfig{
 			Host:     os.Getenv("BLUEPRINT_DB_HOST"),
 			Port:     os.Getenv("BLUEPRINT_DB_PORT"),

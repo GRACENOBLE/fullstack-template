@@ -240,6 +240,99 @@
                 }
             }
         },
+        "/api/v1/storage/presign": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a presigned PUT URL and the final public URL. The client uploads directly to R2 using the presigned URL.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "storage"
+                ],
+                "summary": "Request a presigned upload URL",
+                "parameters": [
+                    {
+                        "description": "Upload request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.presignRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.presignResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/storage/{key}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "storage"
+                ],
+                "summary": "Delete a stored object",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Object key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "produces": [
@@ -376,6 +469,32 @@
                     "type": "integer"
                 },
                 "wait_duration": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.presignRequest": {
+            "type": "object",
+            "required": [
+                "content_type",
+                "filename"
+            ],
+            "properties": {
+                "content_type": {
+                    "type": "string"
+                },
+                "filename": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.presignResponse": {
+            "type": "object",
+            "properties": {
+                "public_url": {
+                    "type": "string"
+                },
+                "upload_url": {
                     "type": "string"
                 }
             }

@@ -1,6 +1,6 @@
 ---
 topic: error-handling
-last_verified: 2026-06-15
+last_verified: 2026-06-23
 sources:
   - internal/infrastructure/database/postgres/health_repository.go
   - internal/transport/handlers/health_handler.go
@@ -19,7 +19,7 @@ Never use `log.Fatal` or `os.Exit` inside `internal/`.
 | `cmd/api/main.go: main()` | `fmt.Fprintf(os.Stderr, ...) + os.Exit(1)` | `bootstrap.Run()` returned an error — process cannot start |
 
 This is the only permitted early-exit path and it lives in `cmd/`, not `internal/`.
-`server.NewServer` does not return an error — all fallible startup work is done by `bootstrap.Run`.
+`server.NewServer` returns `(*http.Server, error)` — the caller in `cmd/api/main.go` checks the error and exits on failure. Fallible startup work is split between `bootstrap.Run` and `server.NewServer` (e.g. registering Prometheus collectors).
 
 ## Repository errors
 Repository methods return `(Result, error)`. On failure, wrap with context using `fmt.Errorf`:

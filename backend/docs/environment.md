@@ -41,6 +41,11 @@ This runs on package init before any env var is read — no explicit `godotenv.L
 | `MAILJET_SECRET_KEY` | `bootstrap.go` | — | Mailjet secret key. Must be provided alongside `MAILJET_API_KEY`. |
 | `FROM_EMAIL` | `bootstrap.go` | — | Verified Mailjet sender address (e.g. `no-reply@example.com`). Required when `MAILJET_API_KEY` and `MAILJET_SECRET_KEY` are set; startup fails if omitted. |
 | `FROM_NAME` | `bootstrap.go` | — | Sender display name (e.g. `MyApp`). Only read when both Mailjet credentials are set. |
+| `R2_ACCOUNT_ID` | `bootstrap.go` | — | Cloudflare account ID. When omitted, `App.StorageService` is `nil` and storage routes are not registered. |
+| `R2_ACCESS_KEY` | `bootstrap.go` | — | R2 API token access key. Required when `R2_ACCOUNT_ID` is set; startup fails if omitted. |
+| `R2_SECRET_KEY` | `bootstrap.go` | — | R2 API token secret key. Required when `R2_ACCOUNT_ID` is set; startup fails if omitted. |
+| `R2_BUCKET` | `bootstrap.go` | — | R2 bucket name. Required when `R2_ACCOUNT_ID` is set; startup fails if omitted. |
+| `R2_PUBLIC_URL` | `bootstrap.go` | — | Public base URL for the R2 bucket (custom domain or `r2.dev` subdomain). Required when `R2_ACCOUNT_ID` is set; startup fails if omitted. |
 
 Variables marked **required** are validated by `bootstrap.validateConfig` at startup — the process exits before attempting a DB connection if any are missing.
 

@@ -15,17 +15,18 @@ sources:
 ## App struct
 ```go
 type App struct {
-    DB          *sql.DB
-    Cache       usecase.CacheService        // nil when REDIS_URL is not set
-    Enqueuer    usecase.Enqueuer            // nil when REDIS_URL is not set
-    Firebase    usecase.FirebaseAdminClient // nil when FIREBASE_PROJECT_ID is not set
-    FCMSender   usecase.NotificationSender  // nil when FIREBASE_PROJECT_ID is not set
-    EmailSender usecase.EmailSender         // nil when MAILJET_API_KEY/SECRET_KEY are not set
-    Config      Config
-    Log         *slog.Logger
+    DB             *sql.DB
+    Cache          usecase.CacheService        // nil when REDIS_URL is not set
+    Enqueuer       usecase.Enqueuer            // nil when REDIS_URL is not set
+    Firebase       usecase.FirebaseAdminClient // nil when FIREBASE_PROJECT_ID is not set
+    FCMSender      usecase.NotificationSender  // nil when FIREBASE_PROJECT_ID is not set
+    EmailSender    usecase.EmailSender         // nil when MAILJET_API_KEY is not set
+    StorageService usecase.StorageService      // nil when R2_ACCOUNT_ID is not set
+    Config         Config
+    Log            *slog.Logger
 }
 ```
-`App` is constructed once by `Run` and passed to `server.NewServer`. Nothing re-initialises dependencies after this point. Optional fields (`Cache`, `Enqueuer`, `Firebase`, `FCMSender`, `EmailSender`) are nil when their corresponding env vars are absent.
+`App` is constructed once by `Run` and passed to `server.NewServer`. Nothing re-initialises dependencies after this point. Optional fields (`Cache`, `Enqueuer`, `Firebase`, `FCMSender`, `EmailSender`, `StorageService`) are nil when their corresponding env vars are absent.
 
 ## Config struct
 ```go
@@ -39,6 +40,15 @@ type Config struct {
     FirebaseProjectID          string
     FirebaseServiceAccountJSON string
     SentryDSN                  string
+    MailjetAPIKey              string
+    MailjetSecretKey           string
+    FromEmail                  string
+    FromName                   string
+    R2AccountID                string
+    R2AccessKey                string
+    R2SecretKey                string
+    R2Bucket                   string
+    R2PublicURL                string
 }
 ```
 `loadConfig()` reads all values from environment variables. `PORT` defaults to `8080`; `BLUEPRINT_DB_SCHEMA` defaults to `public`; `BLUEPRINT_DB_SSLMODE` defaults to `disable`. `RateLimitBurst` is derived as `int(RPS)*5` when omitted and RPS is set. Optional fields (`RedisURL`, `FirebaseProjectID`, `FirebaseServiceAccountJSON`) default to empty string — their respective services are skipped when empty.
@@ -54,7 +64,8 @@ type Config struct {
 6. Init Asynq enqueuer via `queue.NewClient(cfg.RedisURL)` — skipped when `REDIS_URL` is empty
 7. Init Firebase app via `firebase.NewApp(ctx, ...)`, then init Auth client (`firebase.NewAuthClient`) and FCM messaging client (`firebase.NewMessagingClient`) from the same app instance — all skipped when `FIREBASE_PROJECT_ID` is empty
 8. Init Mailjet email sender via `email.NewMailjetSender(...)` — skipped when `MAILJET_API_KEY` or `MAILJET_SECRET_KEY` is empty; startup fails if only a partial Mailjet config is provided
-9. Return `*App` on success; return a non-nil error on any failure
+9. Init R2 storage client via `r2.New(...)` — skipped when `R2_ACCOUNT_ID` is empty; startup fails if `R2_ACCOUNT_ID` is set but any other R2 var is missing
+10. Return `*App` on success; return a non-nil error on any failure
 
 ```go
 ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

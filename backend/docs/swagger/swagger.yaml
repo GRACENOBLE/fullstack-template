@@ -37,6 +37,23 @@ definitions:
       wait_duration:
         type: string
     type: object
+  handlers.presignRequest:
+    properties:
+      content_type:
+        type: string
+      filename:
+        type: string
+    required:
+    - content_type
+    - filename
+    type: object
+  handlers.presignResponse:
+    properties:
+      public_url:
+        type: string
+      upload_url:
+        type: string
+    type: object
   handlers.registerFCMTokenRequest:
     properties:
       platform:
@@ -212,6 +229,65 @@ paths:
       summary: Get current user
       tags:
       - auth
+  /api/v1/storage/{key}:
+    delete:
+      parameters:
+      - description: Object key
+        in: path
+        name: key
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a stored object
+      tags:
+      - storage
+  /api/v1/storage/presign:
+    post:
+      consumes:
+      - application/json
+      description: Returns a presigned PUT URL and the final public URL. The client
+        uploads directly to R2 using the presigned URL.
+      parameters:
+      - description: Upload request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.presignRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.presignResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Request a presigned upload URL
+      tags:
+      - storage
   /health:
     get:
       produces:

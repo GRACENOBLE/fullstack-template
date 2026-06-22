@@ -70,5 +70,10 @@ func (h *Handler) RegisterRoutes(rps float64, burst int, sentryDSN string) http.
 		api.DELETE("/fcm/unregister", h.UnregisterFCMToken)
 	}
 
+	if h.storageService != nil {
+		api.POST("/storage/presign", h.PresignHandler)
+		api.DELETE("/storage/:key", h.DeleteObjectHandler)
+	}
+
 	return r
 }

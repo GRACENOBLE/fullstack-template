@@ -65,5 +65,10 @@ func (h *Handler) RegisterRoutes(rps float64, burst int, sentryDSN string) http.
 	}
 	api.GET("/me", h.MeHandler)
 
+	if h.fcmTokenRepo != nil {
+		api.POST("/fcm/register", h.RegisterFCMToken)
+		api.DELETE("/fcm/unregister", h.UnregisterFCMToken)
+	}
+
 	return r
 }

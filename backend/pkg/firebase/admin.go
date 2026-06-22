@@ -6,7 +6,6 @@ import (
 
 	firebasesdk "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
-	"google.golang.org/api/option"
 
 	"backend/internal/usecase"
 )
@@ -17,29 +16,14 @@ type authClientAdapter struct {
 	client *auth.Client
 }
 
-// NewAuthClient initialises the Firebase Admin SDK and returns a usecase.FirebaseAdminClient
-// ready for injection.
-//
-// credentialsJSON is the raw content of a service account JSON key
-// (FIREBASE_SERVICE_ACCOUNT_JSON env var). When empty the SDK falls back to
-// Application Default Credentials (ADC) — appropriate for GCP-hosted deployments.
-func NewAuthClient(ctx context.Context, projectID, credentialsJSON string) (usecase.FirebaseAdminClient, error) {
-	var opts []option.ClientOption
-	if credentialsJSON != "" {
-		opts = append(opts, option.WithCredentialsJSON([]byte(credentialsJSON)))
-	}
-
-	cfg := &firebasesdk.Config{ProjectID: projectID}
-	app, err := firebasesdk.NewApp(ctx, cfg, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("firebase: init app: %w", err)
-	}
-
+// NewAuthClient returns a usecase.FirebaseAdminClient from an already-initialised Firebase app.
+// Use NewApp to create the app so that the same SDK instance can be shared with other clients
+// (e.g. messaging).
+func NewAuthClient(ctx context.Context, app *firebasesdk.App) (usecase.FirebaseAdminClient, error) {
 	client, err := app.Auth(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("firebase: init auth client: %w", err)
 	}
-
 	return &authClientAdapter{client: client}, nil
 }
 

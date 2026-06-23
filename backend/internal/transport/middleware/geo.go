@@ -27,19 +27,28 @@ func GeoFromRequest(locator usecase.GeoLocator) gin.HandlerFunc {
 	}
 }
 
-// RealIP extracts the originating IP from the request, respecting
-// X-Forwarded-For (Railway/proxy) and X-Real-IP headers.
+// RealIP extracts the originating IP from the request.
+// Forwarding headers (X-Forwarded-For, X-Real-IP) are only trusted when
+// RemoteAddr is a private or loopback address — i.e. the connection actually
+// came through a trusted proxy (Railway, nginx). Direct clients cannot spoof
+// the originating IP this way.
 // Exported so tests and other packages can call it directly.
 func RealIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		return strings.TrimSpace(strings.SplitN(xff, ",", 2)[0])
-	}
-	if xri := r.Header.Get("X-Real-IP"); xri != "" {
-		return strings.TrimSpace(xri)
-	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	remoteHost, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return r.RemoteAddr
+		remoteHost = r.RemoteAddr
 	}
-	return host
+
+	// Only honour forwarding headers from a trusted proxy (private/loopback).
+	remoteIP := net.ParseIP(remoteHost)
+	if remoteIP != nil && (remoteIP.IsLoopback() || remoteIP.IsPrivate()) {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			return strings.TrimSpace(strings.SplitN(xff, ",", 2)[0])
+		}
+		if xri := r.Header.Get("X-Real-IP"); xri != "" {
+			return strings.TrimSpace(xri)
+		}
+	}
+
+	return remoteHost
 }

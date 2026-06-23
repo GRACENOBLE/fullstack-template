@@ -45,6 +45,15 @@ func (m *mockCacheService) Close() error { return nil }
 // Compile-time check: mockCacheService satisfies usecase.CacheService.
 var _ usecase.CacheService = (*mockCacheService)(nil)
 
+func TestClient_Lookup_InvalidIP(t *testing.T) {
+	client := NewWithBaseURL(nil, "", "http://should-not-be-called")
+
+	_, err := client.Lookup(context.Background(), "not-an-ip")
+	if err == nil {
+		t.Fatal("expected error for malformed IP, got nil")
+	}
+}
+
 func TestClient_Lookup_ValidIP(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

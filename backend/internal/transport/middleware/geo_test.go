@@ -160,3 +160,16 @@ func TestRealIP_RemoteAddr(t *testing.T) {
 		t.Errorf("RealIP: got %q, want %q", got, "9.10.11.12")
 	}
 }
+
+func TestRealIP_XForwardedFor_IgnoredFromPublicAddr(t *testing.T) {
+	// A direct client with a public RemoteAddr must not be able to spoof
+	// the originating IP via X-Forwarded-For.
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Header.Set("X-Forwarded-For", "evil.spoofed.ip, 1.2.3.4")
+	req.RemoteAddr = "5.6.7.8:1234" // public IP — not a trusted proxy
+
+	got := middleware.RealIP(req)
+	if got != "5.6.7.8" {
+		t.Errorf("RealIP: got %q, want RemoteAddr %q (XFF should be ignored)", got, "5.6.7.8")
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"time"
@@ -71,16 +72,22 @@ func cacheKey(ip string) string {
 }
 
 // Lookup resolves ip to geographic metadata.
-// Returns ErrPrivateIP for loopback and RFC-1918 addresses without making
-// any outbound HTTP call or cache lookup.
+// Returns an error for malformed or private/loopback IPs without making any
+// outbound HTTP call or cache lookup.
 func (c *Client) Lookup(ctx context.Context, ip string) (*domain.GeoLocation, error) {
+	if net.ParseIP(ip) == nil {
+		return nil, fmt.Errorf("ipgeo: invalid IP address: %q", ip)
+	}
 	if isPrivateIP(ip) {
 		return nil, ErrPrivateIP
 	}
 
-	// Check cache first.
+	// Check cache first; log but don't abort on Redis errors.
 	if c.cache != nil {
-		if val, ok, err := c.cache.Get(ctx, cacheKey(ip)); err == nil && ok {
+		val, ok, err := c.cache.Get(ctx, cacheKey(ip))
+		if err != nil {
+			slog.WarnContext(ctx, "ipgeo: cache get failed", "ip", ip, "error", err)
+		} else if ok {
 			var geo domain.GeoLocation
 			if jsonErr := json.Unmarshal([]byte(val), &geo); jsonErr == nil {
 				return &geo, nil
@@ -93,11 +100,12 @@ func (c *Client) Lookup(ctx context.Context, ip string) (*domain.GeoLocation, er
 		return nil, err
 	}
 
-	// Populate cache.
+	// Populate cache; log but don't fail the lookup on Redis errors.
 	if c.cache != nil {
 		if data, jsonErr := json.Marshal(geo); jsonErr == nil {
-			// Best-effort; ignore cache write errors.
-			_ = c.cache.Set(ctx, cacheKey(ip), string(data), 24*time.Hour)
+			if setErr := c.cache.Set(ctx, cacheKey(ip), string(data), 24*time.Hour); setErr != nil {
+				slog.WarnContext(ctx, "ipgeo: cache set failed", "ip", ip, "error", setErr)
+			}
 		}
 	}
 

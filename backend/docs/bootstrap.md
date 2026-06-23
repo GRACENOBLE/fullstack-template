@@ -22,11 +22,12 @@ type App struct {
     FCMSender      usecase.NotificationSender  // nil when FIREBASE_PROJECT_ID is not set
     EmailSender    usecase.EmailSender         // nil when MAILJET_API_KEY is not set
     StorageService usecase.StorageService      // nil when R2_ACCOUNT_ID is not set
+    GeoLocator     usecase.GeoLocator          // always initialised; free tier works without a key
     Config         Config
     Log            *slog.Logger
 }
 ```
-`App` is constructed once by `Run` and passed to `server.NewServer`. Nothing re-initialises dependencies after this point. Optional fields (`Cache`, `Enqueuer`, `Firebase`, `FCMSender`, `EmailSender`, `StorageService`) are nil when their corresponding env vars are absent.
+`App` is constructed once by `Run` and passed to `server.NewServer`. Nothing re-initialises dependencies after this point. Optional fields (`Cache`, `Enqueuer`, `Firebase`, `FCMSender`, `EmailSender`, `StorageService`) are nil when their corresponding env vars are absent. `GeoLocator` is always non-nil after a successful `Run()`.
 
 ## Config struct
 ```go
@@ -49,6 +50,7 @@ type Config struct {
     R2SecretKey                string
     R2Bucket                   string
     R2PublicURL                string
+    IPAPIKey                   string
 }
 ```
 `loadConfig()` reads all values from environment variables. `PORT` defaults to `8080`; `BLUEPRINT_DB_SCHEMA` defaults to `public`; `BLUEPRINT_DB_SSLMODE` defaults to `disable`. `RateLimitBurst` is derived as `int(RPS)*5` when omitted and RPS is set. Optional fields (`RedisURL`, `FirebaseProjectID`, `FirebaseServiceAccountJSON`) default to empty string — their respective services are skipped when empty.
@@ -65,7 +67,8 @@ type Config struct {
 7. Init Firebase app via `firebase.NewApp(ctx, ...)`, then init Auth client (`firebase.NewAuthClient`) and FCM messaging client (`firebase.NewMessagingClient`) from the same app instance — all skipped when `FIREBASE_PROJECT_ID` is empty
 8. Init Mailjet email sender via `email.NewMailjetSender(...)` — skipped when `MAILJET_API_KEY` or `MAILJET_SECRET_KEY` is empty; startup fails if only a partial Mailjet config is provided
 9. Init R2 storage client via `r2.New(...)` — skipped when `R2_ACCOUNT_ID` is empty; startup fails if `R2_ACCOUNT_ID` is set but any other R2 var is missing
-10. Return `*App` on success; return a non-nil error on any failure
+10. Init `ipgeo.Client` via `ipgeo.New(cache, cfg.IPAPIKey)` — always runs, never conditional; `cache` is nil when Redis is unavailable, which disables caching for geolocation
+11. Return `*App` on success; return a non-nil error on any failure
 
 ```go
 ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

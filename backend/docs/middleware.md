@@ -1,10 +1,13 @@
 ---
 topic: middleware
-last_verified: 2026-06-15
+last_verified: 2026-06-23
 sources:
   - internal/transport/middleware/logger.go
   - internal/transport/middleware/ratelimit.go
   - internal/transport/middleware/auth.go
+  - internal/transport/middleware/metrics.go
+  - internal/transport/middleware/local_network.go
+  - internal/transport/middleware/geo.go
   - internal/transport/handlers/routes.go
 ---
 
@@ -76,6 +79,62 @@ token, ok := val.(*usecase.FirebaseToken)
 ```
 
 Pass `nil` as the `verifier` to `NewHandler` to skip Firebase auth entirely (development without credentials). `RegisterRoutes` reads `h.verifier` from the struct — it is not a parameter of `RegisterRoutes`.
+
+## PrometheusMiddleware
+
+`PrometheusMiddleware() gin.HandlerFunc` records two metrics for every request except `/metrics` itself:
+
+- `http_requests_total` — counter vector with labels `method`, `path`, `status`.
+- `http_request_duration_seconds` — histogram vector with labels `method`, `path`.
+
+Unmatched routes (404s with no Gin `FullPath()`) are recorded under the path label `"unmatched"`.
+
+## LocalNetworkOnly
+
+`LocalNetworkOnly() gin.HandlerFunc` aborts with `403 Forbidden` when the client IP is neither a loopback address nor an RFC 1918 private address. In release mode, `RegisterRoutes` applies it as a per-route middleware on `/metrics` so the Prometheus scrape endpoint is reachable from the internal network but not from external clients.
+
+```go
+// release mode only:
+r.GET("/metrics", middleware.LocalNetworkOnly(), gin.WrapH(promhttp.Handler()))
+```
+
+## GeoFromRequest
+
+`GeoFromRequest(locator usecase.GeoLocator) gin.HandlerFunc` resolves the request's originating IP to geographic metadata and stores the result in the Gin context. It is best-effort: any error from `locator.Lookup` (private IP, rate-limit, network failure) is silently dropped and the request continues without geo data.
+
+```go
+const GeoLocationKey = "geo_location"
+
+func GeoFromRequest(locator usecase.GeoLocator) gin.HandlerFunc
+```
+
+Context key: `middleware.GeoLocationKey` (`"geo_location"`). Value type: `*domain.GeoLocation`.
+
+Reading geo data in a handler:
+```go
+val, exists := c.Get(middleware.GeoLocationKey)
+if !exists {
+    // geo unavailable
+    return
+}
+geo, ok := val.(*domain.GeoLocation)
+if !ok || geo == nil {
+    return
+}
+```
+
+### RealIP helper
+
+```go
+func RealIP(r *http.Request) string
+```
+
+IP extraction precedence:
+1. First address in `X-Forwarded-For` (proxy/Railway deploys).
+2. `X-Real-IP` header.
+3. `r.RemoteAddr` with port stripped via `net.SplitHostPort`.
+
+`RealIP` is exported for direct use in tests and other packages.
 
 ## Adding new middleware
 

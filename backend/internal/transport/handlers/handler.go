@@ -18,6 +18,7 @@ type Handler struct {
 	fcmTokenRepo   usecase.FCMTokenRepository // nil when Firebase is not configured
 	emailSender    usecase.EmailSender        // nil when MAILJET_API_KEY is not set
 	storageService usecase.StorageService     // nil when R2_ACCOUNT_ID is not set
+	geoLocator     usecase.GeoLocator         // nil when geo client is not configured
 }
 
 // NewHandler constructs a Handler with all required use cases.
@@ -31,6 +32,7 @@ func NewHandler(
 	fcmTokenRepo usecase.FCMTokenRepository,
 	emailSender usecase.EmailSender,
 	storageService usecase.StorageService,
+	geoLocator usecase.GeoLocator,
 ) *Handler {
 	return &Handler{
 		healthUC:       healthUC,
@@ -42,5 +44,6 @@ func NewHandler(
 		fcmTokenRepo:   fcmTokenRepo,
 		emailSender:    emailSender,
 		storageService: storageService,
+		geoLocator:     geoLocator,
 	}
 }

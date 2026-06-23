@@ -46,6 +46,7 @@ This runs on package init before any env var is read — no explicit `godotenv.L
 | `R2_SECRET_KEY` | `bootstrap.go` | — | R2 API token secret key. Required when `R2_ACCOUNT_ID` is set; startup fails if omitted. |
 | `R2_BUCKET` | `bootstrap.go` | — | R2 bucket name. Required when `R2_ACCOUNT_ID` is set; startup fails if omitted. |
 | `R2_PUBLIC_URL` | `bootstrap.go` | — | Public base URL for the R2 bucket (custom domain or `r2.dev` subdomain). Required when `R2_ACCOUNT_ID` is set; startup fails if omitted. |
+| `IPAPI_KEY` | `bootstrap.go` | — | ipapi.co API key (optional). Free tier works without a key; supplying one enables higher rate limits. |
 
 Variables marked **required** are validated by `bootstrap.validateConfig` at startup — the process exits before attempting a DB connection if any are missing.
 

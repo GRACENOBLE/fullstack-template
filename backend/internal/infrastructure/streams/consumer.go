@@ -2,8 +2,11 @@ package streams
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -54,7 +57,21 @@ func (c *Consumer) Run(ctx context.Context, h Handler) error {
 			if err == redis.Nil {
 				continue
 			}
+			// Managed Redis (Upstash, Redis Cloud) kills idle connections, which
+			// surfaces as an i/o timeout on the blocking XReadGroup call. The
+			// go-redis pool reconnects automatically on the next attempt, so
+			// treat this as WARN and retry without delay.
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				slog.Warn("streams: connection timeout, reconnecting", "stream", c.stream)
+				continue
+			}
 			slog.Error("streams: read error", "stream", c.stream, "err", err)
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-time.After(500 * time.Millisecond):
+			}
 			continue
 		}
 		for _, entry := range entries {

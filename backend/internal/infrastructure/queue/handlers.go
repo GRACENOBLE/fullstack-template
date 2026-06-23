@@ -21,6 +21,10 @@ func NewHandleWelcomeEmail(sender usecase.EmailSender) asynq.HandlerFunc {
 		if sender == nil {
 			return nil
 		}
-		return sender.SendWelcomeEmail(ctx, p.Email, p.Email)
+		name := p.Name
+		if name == "" {
+			name = p.Email
+		}
+		return sender.SendWelcomeEmail(ctx, p.Email, name)
 	}
 }

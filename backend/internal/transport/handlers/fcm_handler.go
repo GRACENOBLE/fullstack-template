@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -52,10 +53,13 @@ func (h *Handler) RegisterFCMToken(c *gin.Context) {
 	}
 
 	if h.streamProducer != nil {
-		_ = h.streamProducer.Publish(c.Request.Context(), streams.StreamUserCreated, streams.UserCreatedEvent{
+		if err := h.streamProducer.Publish(c.Request.Context(), streams.StreamUserCreated, streams.UserCreatedEvent{
 			UserID: claims.UID,
 			Email:  claims.Email,
-		})
+			Name:   claims.Name,
+		}); err != nil {
+			slog.Warn("fcm: failed to publish user created event", "user_id", claims.UID, "err", err)
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "token registered"})
@@ -84,8 +88,7 @@ func (h *Handler) UnregisterFCMToken(c *gin.Context) {
 	}
 
 	var req unregisterFCMTokenRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindJSON(c, &req) {
 		return
 	}
 

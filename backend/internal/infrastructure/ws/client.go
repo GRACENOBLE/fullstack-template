@@ -63,12 +63,14 @@ func (c *Client) ReadPump() {
 			break
 		}
 		var env Envelope
-		if jsonErr := json.Unmarshal(raw, &env); jsonErr == nil {
-			select {
-			case c.hub.inbound <- InboundMessage{ClientID: c.conn.RemoteAddr().String(), Msg: env}:
-			default:
-				slog.Warn("ws: inbound channel full, message dropped")
-			}
+		if jsonErr := json.Unmarshal(raw, &env); jsonErr != nil {
+			slog.Warn("ws: malformed inbound frame, discarding", "client", c.conn.RemoteAddr(), "err", jsonErr)
+			continue
+		}
+		select {
+		case c.hub.inbound <- InboundMessage{ClientID: c.conn.RemoteAddr().String(), Msg: env}:
+		default:
+			slog.Warn("ws: inbound channel full, message dropped")
 		}
 	}
 }

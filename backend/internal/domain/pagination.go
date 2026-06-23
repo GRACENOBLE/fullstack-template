@@ -33,4 +33,10 @@ func (p *PageRequest) Defaults() {
 }
 
 // Offset returns the SQL OFFSET value for this page request.
-func (p PageRequest) Offset() int { return (p.Page - 1) * p.PageSize }
+// Normalises the page to at least 1 so the result is never negative.
+func (p PageRequest) Offset() int {
+	if p.Page <= 1 {
+		return 0
+	}
+	return (p.Page - 1) * p.PageSize
+}

@@ -8,6 +8,8 @@ import (
 	"sync"
 )
 
+const inboundWorkers = 64 // max concurrent inbound handler goroutines
+
 // Hub maintains the set of active WebSocket clients and broadcasts messages to them.
 // All mutations to the clients map are serialised through the Run goroutine.
 // msgHandlers is protected by mu and may be updated concurrently.
@@ -19,6 +21,7 @@ type Hub struct {
 	inbound     chan InboundMessage
 	msgHandlers map[string]InboundHandler
 	mu          sync.RWMutex
+	sem         chan struct{} // bounds concurrent inbound handler goroutines
 }
 
 // NewHub allocates a Hub with buffered channels.
@@ -30,6 +33,7 @@ func NewHub() *Hub {
 		Unregister:  make(chan *Client),
 		inbound:     make(chan InboundMessage, 256),
 		msgHandlers: make(map[string]InboundHandler),
+		sem:         make(chan struct{}, inboundWorkers),
 	}
 }
 
@@ -72,12 +76,19 @@ func (h *Hub) Run(ctx context.Context) {
 			h.mu.RLock()
 			fn := h.msgHandlers[im.Msg.Type]
 			h.mu.RUnlock()
-			if fn != nil {
+			if fn == nil {
+				continue
+			}
+			select {
+			case h.sem <- struct{}{}:
 				go func(msg InboundMessage) {
-					if err := fn(context.Background(), msg); err != nil {
+					defer func() { <-h.sem }()
+					if err := fn(ctx, msg); err != nil {
 						slog.Error("ws: inbound handler error", "type", msg.Msg.Type, "err", err)
 					}
 				}(im)
+			default:
+				slog.Warn("ws: inbound worker pool full, message dropped", "type", im.Msg.Type)
 			}
 		}
 	}

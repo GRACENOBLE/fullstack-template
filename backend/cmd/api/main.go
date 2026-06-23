@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 
 	"backend/internal/bootstrap"
 	"backend/internal/infrastructure/queue"
+	"backend/internal/infrastructure/streams"
 	"backend/internal/infrastructure/ws"
 	"backend/internal/server"
 )
@@ -78,6 +80,32 @@ func main() {
 		}()
 	}
 
+	// Start Redis Streams consumer: fan-out UserCreated events → welcome email queue.
+	var streamCancel context.CancelFunc
+	if app.StreamProducer != nil && app.Enqueuer != nil {
+		streamCtx, sCancel := context.WithCancel(context.Background())
+		streamCancel = sCancel
+		consumer, err := streams.NewConsumer(app.Config.RedisURL, streams.StreamUserCreated, "api", "api-1")
+		if err != nil {
+			slog.Error("streams: failed to create consumer", "err", err)
+		} else {
+			go func() {
+				_ = consumer.Run(streamCtx, func(ctx context.Context, data []byte) error {
+					var evt streams.UserCreatedEvent
+					if err := json.Unmarshal(data, &evt); err != nil {
+						return err
+					}
+					payload, err := json.Marshal(queue.WelcomeEmailPayload{UserID: evt.UserID, Email: evt.Email, Name: evt.Name})
+					if err != nil {
+						return err
+					}
+					return app.Enqueuer.Enqueue(ctx, queue.TypeWelcomeEmail, payload)
+				})
+				_ = consumer.Close()
+			}()
+		}
+	}
+
 	srv, err := server.NewServer(app, hub)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "startup failed: %v\n", err)
@@ -94,6 +122,9 @@ func main() {
 
 	<-done
 
+	if streamCancel != nil {
+		streamCancel() // stop streams consumer
+	}
 	if workerCancel != nil {
 		workerCancel() // stop worker before hub (in-flight jobs drain first)
 	}
@@ -107,6 +138,11 @@ func main() {
 	if app.Enqueuer != nil {
 		if err := app.Enqueuer.Close(); err != nil {
 			slog.Error("enqueuer close error", "error", err)
+		}
+	}
+	if app.StreamProducer != nil {
+		if err := app.StreamProducer.Close(); err != nil {
+			slog.Error("stream producer close error", "error", err)
 		}
 	}
 	slog.Info("graceful shutdown complete")

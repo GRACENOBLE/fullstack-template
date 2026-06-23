@@ -14,3 +14,4 @@ Topic-based documentation for the Android app. Each file is kept in sync with th
 | Testing patterns | `testing.md` | `app/src/test/java/com/company/template/GreetingFormatTest.kt`, `app/src/androidTest/java/com/company/template/GreetingTest.kt`, `app/build.gradle.kts` |
 | Observability (Sentry error tracking) | `observability.md` | `gradle/libs.versions.toml`, `app/build.gradle.kts`, `app/src/main/java/com/company/template/MainActivity.kt` |
 | Firebase Cloud Messaging — service, token registration, background notifications | `fcm.md` | `app/src/main/java/com/company/template/fcm/MyFirebaseMessagingService.kt`, `app/src/main/java/com/company/template/fcm/FcmRegistrationPayload.kt`, `app/src/main/AndroidManifest.xml`, `gradle/libs.versions.toml` |
+| Object storage (Cloudflare R2) — UploadRepository interface, R2UploadRepository, presign + PUT flow | `storage.md` | `app/src/main/java/com/company/template/storage/UploadRepository.kt` |

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"time"
 
@@ -11,14 +12,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-)
 
-// StorageService is the interface satisfied by this Cloudflare R2 adapter.
-type StorageService interface {
-	PresignUpload(ctx context.Context, key string, contentType string, ttl time.Duration) (string, error)
-	Delete(ctx context.Context, key string) error
-	PublicURL(key string) string
-}
+	"backend/internal/usecase"
+)
 
 type storageService struct {
 	client    *s3.Client
@@ -27,19 +23,31 @@ type storageService struct {
 	publicURL string
 }
 
-// New returns a StorageService backed by Cloudflare R2.
+// New returns a usecase.StorageService backed by Cloudflare R2.
 // R2 is S3-compatible; the custom endpoint encodes the account ID.
-func New(accountID, accessKey, secretKey, bucket, publicBaseURL string) (StorageService, error) {
+func New(accountID, accessKey, secretKey, bucket, publicBaseURL string) (usecase.StorageService, error) {
+	return NewWithHTTPClient(accountID, accessKey, secretKey, bucket, publicBaseURL, nil)
+}
+
+// NewWithHTTPClient is like New but accepts a custom *http.Client.
+// Pass nil to use the default AWS SDK HTTP client.
+// This constructor exists to allow tests to inject a mock HTTP transport.
+func NewWithHTTPClient(accountID, accessKey, secretKey, bucket, publicBaseURL string, httpClient *http.Client) (usecase.StorageService, error) {
 	if accountID == "" || accessKey == "" || secretKey == "" || bucket == "" || publicBaseURL == "" {
 		return nil, errors.New("r2: accountID, accessKey, secretKey, bucket, and publicBaseURL are all required")
 	}
 
 	endpoint := fmt.Sprintf("https://%s.r2.cloudflarestorage.com", accountID)
 
-	cfg, err := config.LoadDefaultConfig(context.Background(),
+	awsOpts := []func(*config.LoadOptions) error{
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")),
 		config.WithRegion("auto"),
-	)
+	}
+	if httpClient != nil {
+		awsOpts = append(awsOpts, config.WithHTTPClient(httpClient))
+	}
+
+	cfg, err := config.LoadDefaultConfig(context.Background(), awsOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("r2: load config: %w", err)
 	}

@@ -1,6 +1,6 @@
 ---
 topic: websocket
-last_verified: 2026-06-15
+last_verified: 2026-06-23
 sources:
   - internal/infrastructure/ws/message.go
   - internal/infrastructure/ws/hub.go
@@ -116,7 +116,7 @@ started in separate goroutines.
 `server.go` accepts `*ws.Hub` as a second argument:
 
 ```go
-func NewServer(app *bootstrap.App, hub *ws.Hub) *http.Server
+func NewServer(app *bootstrap.App, hub *ws.Hub) (*http.Server, error)
 ```
 
 `cmd/api/main.go` creates the Hub, starts `Run` with a child context, and cancels
@@ -127,27 +127,13 @@ hubCtx, hubCancel := context.WithCancel(context.Background())
 hub := ws.NewHub()
 go hub.Run(hubCtx)
 
-srv := server.NewServer(app, hub)
+srv, err := server.NewServer(app, hub)
 // ...
 <-done
 hubCancel()   // stop hub after server drains connections
 ```
 
-## Handler struct
-
-`verifier` (for WS auth) and `hub` are now fields on `Handler`:
-
-```go
-type Handler struct {
-    healthUC usecase.HealthUseCase
-    verifier usecase.FirebaseTokenVerifier  // nil disables auth (dev only)
-    hub      *ws.Hub
-}
-
-func NewHandler(healthUC usecase.HealthUseCase, verifier usecase.FirebaseTokenVerifier, hub *ws.Hub) *Handler
-```
-
-`RegisterRoutes` no longer accepts `verifier` as a parameter — it reads from `h.verifier`.
+The canonical `Handler` struct definition and `NewHandler` signature (including all fields beyond `hub` and `verifier`) are documented in `backend/docs/routing.md`.
 
 ## Publishing events from workers (future #18)
 

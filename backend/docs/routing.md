@@ -59,7 +59,7 @@ if app.Config.RedisURL != "" {
     // parse URL and build asynqmon.New(...)
 }
 
-h := handlers.NewHandler(healthUC, app.Firebase, hub, app.Enqueuer, queueUI, app.FCMSender, fcmTokenRepo)
+h := handlers.NewHandler(healthUC, app.Firebase, hub, app.Enqueuer, queueUI, app.FCMSender, fcmTokenRepo, app.EmailSender)
 
 // Register DB pool metrics collector (AlreadyRegisteredError is silenced).
 prometheus.Register(postgres.NewDBStatsCollector(app.DB))

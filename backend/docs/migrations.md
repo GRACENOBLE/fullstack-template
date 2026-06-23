@@ -1,6 +1,6 @@
 ---
 topic: migrations
-last_verified: 2026-06-15
+last_verified: 2026-06-23
 sources:
   - cmd/migrate/main.go
   - internal/infrastructure/database/migrations/
@@ -46,9 +46,31 @@ DROP TABLE users;
 
 Rules:
 - Every statement must end with `;`
-- DDL only — no application data mutations in migrations
+- DDL only — no application data mutations in migrations, with one exception: `UPDATE` backfills are permitted as a step between `ADD COLUMN` (nullable) and `SET NOT NULL` (see pattern below)
 - For multi-statement blocks (PL/pgSQL), wrap with `-- +goose StatementBegin` / `-- +goose StatementEnd`
 - Avoid `-- +goose NO TRANSACTION` unless the statement genuinely cannot run in a transaction (e.g. `CREATE INDEX CONCURRENTLY`)
+
+## Adding a NOT NULL column to an existing table
+When adding a `NOT NULL` column to a table that may already have rows, follow the three-step pattern from `20260623063851_add_user_profile.sql`:
+
+```sql
+-- +goose Up
+-- Step 1: add as nullable
+ALTER TABLE users ADD COLUMN IF NOT EXISTS firebase_uid TEXT;
+
+-- Step 2: backfill existing rows so SET NOT NULL will succeed
+UPDATE users SET firebase_uid = 'legacy-' || id::text WHERE firebase_uid IS NULL;
+
+-- Step 3: apply the constraint and unique index
+ALTER TABLE users ALTER COLUMN firebase_uid SET NOT NULL;
+ALTER TABLE users ADD CONSTRAINT users_firebase_uid_key UNIQUE (firebase_uid);
+
+-- +goose Down
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_firebase_uid_key;
+ALTER TABLE users DROP COLUMN IF EXISTS firebase_uid;
+```
+
+This avoids the `ERROR: column contains null values` failure that occurs when you add a `NOT NULL` column with no default and the table is non-empty.
 
 ## Workflow for any new table
 1. `make migrate-create name=add_<table>` — generates the timestamped file

@@ -1,11 +1,15 @@
 ---
 topic: database
-last_verified: 2026-06-15
+last_verified: 2026-06-23
 sources:
   - internal/domain/health.go
+  - internal/domain/user.go
+  - internal/domain/pagination.go
   - internal/usecase/health_usecase.go
+  - internal/usecase/user.go
   - internal/infrastructure/database/postgres/db.go
   - internal/infrastructure/database/postgres/health_repository.go
+  - internal/infrastructure/database/postgres/user_repository.go
 ---
 
 # Database
@@ -45,11 +49,14 @@ Env vars are loaded via `_ "github.com/joho/godotenv/autoload"` blank import in 
 
 ```
 internal/domain/health.go                        — HealthStats type
+internal/domain/user.go                          — User type
+internal/domain/pagination.go                    — Page[T], CursorPage[T], PageRequest
 internal/usecase/health_usecase.go               — HealthReader interface (repo contract), HealthUseCase interface + impl
-internal/infrastructure/database/postgres/       — HealthRepository: implements HealthReader against *sql.DB
+internal/usecase/user.go                         — UserRepository interface
+internal/infrastructure/database/postgres/       — HealthRepository, UserRepository: implement interfaces against *sql.DB
 ```
 
-The `HealthReader` interface is defined in the `usecase` package (Dependency Inversion — the use case owns the interface it depends on):
+Repository interfaces are defined in the `usecase` package (Dependency Inversion — the use case owns the interface it depends on):
 
 ```go
 // usecase/health_usecase.go
@@ -60,7 +67,74 @@ type HealthReader interface {
 type HealthUseCase interface {
     GetHealth(ctx context.Context) (domain.HealthStats, error)
 }
+
+// usecase/user.go
+type UserRepository interface {
+    Upsert(ctx context.Context, u *domain.User) (*domain.User, error)
+    DeleteByFirebaseUID(ctx context.Context, firebaseUID string) error
+}
 ```
+
+## Domain types
+
+```go
+// internal/domain/user.go
+type User struct {
+    ID          int64     `json:"id"`
+    FirebaseUID string    `json:"firebase_uid"`
+    Name        string    `json:"name"`
+    Email       string    `json:"email"`
+    PhotoURL    string    `json:"photo_url"`
+    CreatedAt   time.Time `json:"created_at"`
+    UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// internal/domain/pagination.go
+type Page[T any] struct {
+    Items    []T  `json:"items"`
+    Total    int  `json:"total"`
+    Page     int  `json:"page"`
+    PageSize int  `json:"page_size"`
+    HasMore  bool `json:"has_more"`
+}
+
+type CursorPage[T any] struct {
+    Items      []T    `json:"items"`
+    NextCursor string `json:"next_cursor,omitempty"`
+    HasMore    bool   `json:"has_more"`
+}
+
+type PageRequest struct {
+    Page     int `form:"page"      binding:"min=0"`
+    PageSize int `form:"page_size" binding:"min=0,max=100"`
+}
+
+func (p *PageRequest) Defaults()    // fills zero values with page=1, size=20
+func (p PageRequest) Offset() int   // returns SQL OFFSET value
+```
+
+## Users table schema
+Added via migration `20260623063851_add_user_profile.sql`:
+
+| Column | Type | Constraints |
+|---|---|---|
+| `id` | `BIGSERIAL` | PRIMARY KEY |
+| `firebase_uid` | `TEXT` | NOT NULL, UNIQUE |
+| `name` | `TEXT` | — |
+| `email` | `TEXT` | — |
+| `photo_url` | `TEXT` | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL DEFAULT now() |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL DEFAULT now() |
+
+## UserRepository
+`internal/infrastructure/database/postgres/user_repository.go` — constructor returns the interface, not the concrete type:
+
+```go
+func NewUserRepository(db *sql.DB) usecase.UserRepository
+```
+
+`Upsert` uses `INSERT ... ON CONFLICT (firebase_uid) DO UPDATE` and returns the full row via `RETURNING`.
+`DeleteByFirebaseUID` deletes by `firebase_uid`; does not error when the row does not exist (DELETE is idempotent).
 
 ## Repository pattern
 Each repository is a struct that holds `*sql.DB` and is constructed with a `New*` function.

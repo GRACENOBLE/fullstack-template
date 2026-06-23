@@ -24,14 +24,26 @@ pnpm test:ui      # Vitest browser UI
 ## Project structure
 
 ```
-app/                  # Next.js App Router — routes only
-  layout.tsx          # root layout: Geist fonts, global CSS, <html>/<body>
-  page.tsx            # home page (Server Component)
-  globals.css         # Tailwind v4 import + CSS variable definitions
-public/               # static assets
-components/           # shared UI components (create when needed)
-lib/                  # utilities and non-React helpers (create when needed)
-types/                # shared TypeScript type definitions (create when needed)
+app/                        # Next.js App Router — routes only (no business logic)
+  layout.tsx                # root layout: Geist fonts, global CSS, <html>/<body>
+  page.tsx                  # home page (Server Component)
+  globals.css               # Tailwind v4 import + CSS variable definitions
+  (auth)/                   # route group for unauthenticated pages (login, register…)
+  (dashboard)/              # route group for authenticated/protected pages
+components/
+  layout/                   # AppShell, Sidebar, Navbar, Footer
+  common/                   # reusable cross-feature UI (Avatar, Badge, Spinner…)
+  home/                     # landing / home page components
+  ui/                       # shadcn primitives — populated by CLI, do not hand-create
+features/                   # one subfolder per domain feature (auth/, notifications/…)
+  <feature>/
+    components/             # feature-scoped UI
+    hooks/                  # feature-scoped React hooks
+    types.ts                # feature-scoped TypeScript types
+lib/                        # pure utilities and non-React helpers
+public/                     # static assets
+server/                     # tRPC routers and server-side logic
+types/                      # shared TypeScript interfaces used across features
 ```
 
 ---

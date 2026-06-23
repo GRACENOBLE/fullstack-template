@@ -2,8 +2,11 @@ package streams
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -25,6 +28,12 @@ func NewConsumer(redisURL, stream, group, consumer string) (*Consumer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("streams: parse redis url: %w", err)
 	}
+	// Proactively close idle connections after 8 s so the client pool recycles
+	// them before managed Redis providers (Upstash, Redis Cloud) kill them at
+	// their own idle timeout (~10–60 s depending on plan). This eliminates the
+	// i/o timeout errors that otherwise surface from blocking XReadGroup calls.
+	opts.MaxIdleConns = 1
+	opts.ConnMaxIdleTime = 8 * time.Second
 	return &Consumer{
 		client:   redis.NewClient(opts),
 		stream:   stream,
@@ -54,7 +63,25 @@ func (c *Consumer) Run(ctx context.Context, h Handler) error {
 			if err == redis.Nil {
 				continue
 			}
+			// i/o timeout means the server closed an idle connection. The pool
+			// will reconnect on the next attempt; back off briefly to avoid
+			// rapid connection cycling and unnecessary I/O.
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				slog.Warn("streams: connection timeout, reconnecting", "stream", c.stream)
+				select {
+				case <-ctx.Done():
+					return nil
+				case <-time.After(2 * time.Second):
+				}
+				continue
+			}
 			slog.Error("streams: read error", "stream", c.stream, "err", err)
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-time.After(500 * time.Millisecond):
+			}
 			continue
 		}
 		for _, entry := range entries {

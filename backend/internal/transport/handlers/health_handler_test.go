@@ -31,7 +31,7 @@ func TestHealthHandler_Success(t *testing.T) {
 		Status:  "up",
 		Message: "It's healthy",
 	}
-	h := NewHandler(&mockHealthUC{stats: want}, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	h := NewHandler(&mockHealthUC{stats: want}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	r := gin.New()
 	r.GET("/health", h.HealthHandler)
@@ -50,7 +50,7 @@ func TestHealthHandler_Success(t *testing.T) {
 }
 
 func TestHealthHandler_ServiceUnavailable(t *testing.T) {
-	h := NewHandler(&mockHealthUC{err: errors.New("connection refused")}, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	h := NewHandler(&mockHealthUC{err: errors.New("connection refused")}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	r := gin.New()
 	r.GET("/health", h.HealthHandler)

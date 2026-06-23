@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
+	"backend/internal/infrastructure/streams"
 	"backend/internal/transport/middleware"
 	"backend/internal/usecase"
 )
@@ -41,14 +43,23 @@ func (h *Handler) RegisterFCMToken(c *gin.Context) {
 	}
 
 	var req registerFCMTokenRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindJSON(c, &req) {
 		return
 	}
 
 	if err := h.fcmTokenRepo.SaveToken(c.Request.Context(), claims.UID, req.Token, req.Platform); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save token"})
 		return
+	}
+
+	if h.streamProducer != nil {
+		if err := h.streamProducer.Publish(c.Request.Context(), streams.StreamUserCreated, streams.UserCreatedEvent{
+			UserID: claims.UID,
+			Email:  claims.Email,
+			Name:   claims.Name,
+		}); err != nil {
+			slog.Warn("fcm: failed to publish user created event", "user_id", claims.UID, "err", err)
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "token registered"})
@@ -77,8 +88,7 @@ func (h *Handler) UnregisterFCMToken(c *gin.Context) {
 	}
 
 	var req unregisterFCMTokenRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindJSON(c, &req) {
 		return
 	}
 

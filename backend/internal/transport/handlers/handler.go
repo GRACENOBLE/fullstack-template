@@ -19,6 +19,8 @@ type Handler struct {
 	emailSender    usecase.EmailSender        // nil when MAILJET_API_KEY is not set
 	storageService usecase.StorageService     // nil when R2_ACCOUNT_ID is not set
 	geoLocator     usecase.GeoLocator         // nil when geo client is not configured
+	streamProducer usecase.StreamProducer     // nil when REDIS_URL is not set
+	userRepo       usecase.UserRepository     // nil when not wired
 }
 
 // NewHandler constructs a Handler with all required use cases.
@@ -33,6 +35,8 @@ func NewHandler(
 	emailSender usecase.EmailSender,
 	storageService usecase.StorageService,
 	geoLocator usecase.GeoLocator,
+	streamProducer usecase.StreamProducer,
+	userRepo usecase.UserRepository,
 ) *Handler {
 	return &Handler{
 		healthUC:       healthUC,
@@ -45,5 +49,7 @@ func NewHandler(
 		emailSender:    emailSender,
 		storageService: storageService,
 		geoLocator:     geoLocator,
+		streamProducer: streamProducer,
+		userRepo:       userRepo,
 	}
 }

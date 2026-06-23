@@ -40,6 +40,8 @@ func NewServer(app *bootstrap.App, hub *ws.Hub) (*http.Server, error) {
 		fcmTokenRepo = postgres.NewFCMTokenRepository(app.DB)
 	}
 
+	userRepo := postgres.NewUserRepository(app.DB)
+
 	// Build Asynqmon UI handler when Redis is available.
 	var queueUI http.Handler
 	if app.Config.RedisURL != "" {
@@ -56,7 +58,7 @@ func NewServer(app *bootstrap.App, hub *ws.Hub) (*http.Server, error) {
 		}
 	}
 
-	h := handlers.NewHandler(healthUC, app.Firebase, hub, app.Enqueuer, queueUI, app.FCMSender, fcmTokenRepo, app.EmailSender, app.StorageService, app.GeoLocator)
+	h := handlers.NewHandler(healthUC, app.Firebase, hub, app.Enqueuer, queueUI, app.FCMSender, fcmTokenRepo, app.EmailSender, app.StorageService, app.GeoLocator, app.StreamProducer, userRepo)
 
 	// Register DB pool metrics collector.
 	// AlreadyRegisteredError is silenced — only the first registration wins

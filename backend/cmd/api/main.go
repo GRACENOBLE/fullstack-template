@@ -10,8 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hibiken/asynq"
-
 	"backend/internal/bootstrap"
 	"backend/internal/infrastructure/queue"
 	"backend/internal/infrastructure/ws"
@@ -72,13 +70,34 @@ func main() {
 			fmt.Fprintf(os.Stderr, "startup failed: %v\n", err)
 			os.Exit(1)
 		}
-		worker.Register(queue.TypeWelcomeEmail, asynq.HandlerFunc(queue.HandleWelcomeEmail))
+		worker.Register(queue.TypeWelcomeEmail, queue.NewHandleWelcomeEmail(app.EmailSender))
 		go func() {
 			if err := worker.Run(workerCtx); err != nil {
 				slog.Error("queue: worker error", "err", err)
 			}
 		}()
 	}
+
+	// --- Redis Streams consumer (unwired — add when you have a concrete use case) ---
+	// The streams infrastructure (Producer, Consumer, events) is fully implemented.
+	// Wire a consumer here following this pattern when you need it:
+	//
+	//   streamCtx, streamCancel := context.WithCancel(context.Background())
+	//   consumer, err := streams.NewConsumer(app.Config.RedisURL, streams.StreamUserCreated, "api", "api-1")
+	//   if err != nil {
+	//       slog.Error("streams: failed to create consumer", "err", err)
+	//   } else {
+	//       go func() {
+	//           _ = consumer.Run(streamCtx, func(ctx context.Context, data []byte) error {
+	//               var evt streams.UserCreatedEvent
+	//               if err := json.Unmarshal(data, &evt); err != nil { return err }
+	//               payload, _ := json.Marshal(queue.WelcomeEmailPayload{UserID: evt.UserID, Email: evt.Email, Name: evt.Name})
+	//               return app.Enqueuer.Enqueue(ctx, queue.TypeWelcomeEmail, payload)
+	//           })
+	//           _ = consumer.Close()
+	//       }()
+	//   }
+	//   // In the shutdown sequence below, call: streamCancel()
 
 	srv, err := server.NewServer(app, hub)
 	if err != nil {
@@ -109,6 +128,11 @@ func main() {
 	if app.Enqueuer != nil {
 		if err := app.Enqueuer.Close(); err != nil {
 			slog.Error("enqueuer close error", "error", err)
+		}
+	}
+	if app.StreamProducer != nil {
+		if err := app.StreamProducer.Close(); err != nil {
+			slog.Error("stream producer close error", "error", err)
 		}
 	}
 	slog.Info("graceful shutdown complete")

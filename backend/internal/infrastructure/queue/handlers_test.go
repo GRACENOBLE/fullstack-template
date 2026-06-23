@@ -16,14 +16,16 @@ func TestHandleWelcomeEmail_ValidPayload(t *testing.T) {
 		t.Fatalf("marshal: %v", err)
 	}
 	task := asynq.NewTask(queue.TypeWelcomeEmail, payload)
-	if err := queue.HandleWelcomeEmail(context.Background(), task); err != nil {
+	handler := queue.NewHandleWelcomeEmail(nil) // nil sender: ack without sending
+	if err := handler(context.Background(), task); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 }
 
 func TestHandleWelcomeEmail_InvalidPayload(t *testing.T) {
 	task := asynq.NewTask(queue.TypeWelcomeEmail, []byte("not-json"))
-	if err := queue.HandleWelcomeEmail(context.Background(), task); err == nil {
+	handler := queue.NewHandleWelcomeEmail(nil)
+	if err := handler(context.Background(), task); err == nil {
 		t.Error("expected error for invalid payload, got nil")
 	}
 }

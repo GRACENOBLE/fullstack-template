@@ -110,6 +110,36 @@ func TestHub_ConcurrentClientsAndBroadcast(t *testing.T) {
 	wg.Wait()
 }
 
+func TestHub_OnMessage(t *testing.T) {
+	hub := NewHub()
+	go hub.Run(t.Context())
+
+	called := make(chan InboundMessage, 1)
+	hub.OnMessage("ping", func(_ context.Context, msg InboundMessage) error {
+		called <- msg
+		return nil
+	})
+
+	im := InboundMessage{ClientID: "client-1", Msg: Envelope{Type: "ping"}}
+	select {
+	case hub.inbound <- im:
+	case <-time.After(time.Second):
+		t.Fatal("timed out sending to hub.inbound")
+	}
+
+	select {
+	case got := <-called:
+		if got.ClientID != "client-1" {
+			t.Errorf("ClientID: got %q, want %q", got.ClientID, "client-1")
+		}
+		if got.Msg.Type != "ping" {
+			t.Errorf("Msg.Type: got %q, want %q", got.Msg.Type, "ping")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for OnMessage handler to be called")
+	}
+}
+
 func TestHub_Publish(t *testing.T) {
 	hub := NewHub()
 	go hub.Run(t.Context())

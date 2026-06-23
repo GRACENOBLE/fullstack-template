@@ -21,6 +21,7 @@ import (
 	"backend/internal/infrastructure/ipgeo"
 	"backend/internal/infrastructure/queue"
 	"backend/internal/infrastructure/storage/r2"
+	"backend/internal/infrastructure/streams"
 	"backend/internal/usecase"
 	"backend/pkg/firebase"
 	"backend/pkg/logger"
@@ -40,6 +41,7 @@ type App struct {
 	DB             *sql.DB
 	Cache          usecase.CacheService        // nil when REDIS_URL is not set
 	Enqueuer       usecase.Enqueuer            // nil when REDIS_URL is not set
+	StreamProducer usecase.StreamProducer      // nil when REDIS_URL is not set
 	Firebase       usecase.FirebaseAdminClient // nil when FIREBASE_PROJECT_ID is not set
 	FCMSender      usecase.NotificationSender  // nil when FIREBASE_PROJECT_ID is not set
 	EmailSender    usecase.EmailSender         // nil when MAILJET_API_KEY is not set
@@ -134,6 +136,15 @@ func Run(ctx context.Context) (*App, error) {
 		enqueuer = eq
 	}
 
+	var streamProducer usecase.StreamProducer
+	if cfg.RedisURL != "" {
+		p, err := streams.NewProducer(cfg.RedisURL)
+		if err != nil {
+			return nil, fmt.Errorf("bootstrap: streams: %w", err)
+		}
+		streamProducer = p
+	}
+
 	var firebaseClient usecase.FirebaseAdminClient
 	var fcmSender usecase.NotificationSender
 	if cfg.FirebaseProjectID != "" {
@@ -186,6 +197,7 @@ func Run(ctx context.Context) (*App, error) {
 		DB:             db,
 		Cache:          cache,
 		Enqueuer:       enqueuer,
+		StreamProducer: streamProducer,
 		Firebase:       firebaseClient,
 		FCMSender:      fcmSender,
 		EmailSender:    emailSender,

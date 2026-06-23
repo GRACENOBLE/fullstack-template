@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"encoding/json"
 	"log/slog"
 	"time"
 
@@ -54,14 +55,23 @@ func (c *Client) ReadPump() {
 		return c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	})
 	for {
-		_, _, err := c.conn.ReadMessage()
+		_, raw, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				slog.Error("websocket read error", "error", err)
 			}
 			break
 		}
-		// Server-to-client only for now; incoming messages are discarded.
+		var env Envelope
+		if jsonErr := json.Unmarshal(raw, &env); jsonErr != nil {
+			slog.Warn("ws: malformed inbound frame, discarding", "client", c.conn.RemoteAddr(), "err", jsonErr)
+			continue
+		}
+		select {
+		case c.hub.inbound <- InboundMessage{ClientID: c.conn.RemoteAddr().String(), Msg: env}:
+		default:
+			slog.Warn("ws: inbound channel full, message dropped")
+		}
 	}
 }
 

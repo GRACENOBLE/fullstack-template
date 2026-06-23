@@ -18,6 +18,7 @@ import (
 	"backend/internal/infrastructure/cache/redis"
 	"backend/internal/infrastructure/database/postgres"
 	"backend/internal/infrastructure/email"
+	"backend/internal/infrastructure/ipgeo"
 	"backend/internal/infrastructure/queue"
 	"backend/internal/infrastructure/storage/r2"
 	"backend/internal/usecase"
@@ -43,6 +44,7 @@ type App struct {
 	FCMSender      usecase.NotificationSender  // nil when FIREBASE_PROJECT_ID is not set
 	EmailSender    usecase.EmailSender         // nil when MAILJET_API_KEY is not set
 	StorageService usecase.StorageService      // nil when R2_ACCOUNT_ID is not set
+	GeoLocator     usecase.GeoLocator          // always initialised; free tier works without a key
 	Config         Config
 	Log            *slog.Logger
 }
@@ -67,6 +69,7 @@ type Config struct {
 	R2SecretKey                string
 	R2Bucket                   string
 	R2PublicURL                string
+	IPAPIKey                   string
 }
 
 // ConfigError is returned when required configuration is absent or invalid.
@@ -172,6 +175,11 @@ func Run(ctx context.Context) (*App, error) {
 		log.Info("bootstrap: R2 storage client initialised", "bucket", cfg.R2Bucket)
 	}
 
+	// Geolocation is always available — ipapi.co has a free tier.
+	// Cache is used when Redis is available; nil cache means no caching.
+	geoLocator := ipgeo.New(cache, cfg.IPAPIKey)
+	log.Info("bootstrap: ipapi geolocation client initialised", "cached", cache != nil)
+
 	log.Info("bootstrap: all checks passed — ready to serve")
 
 	return &App{
@@ -182,6 +190,7 @@ func Run(ctx context.Context) (*App, error) {
 		FCMSender:      fcmSender,
 		EmailSender:    emailSender,
 		StorageService: storageService,
+		GeoLocator:     geoLocator,
 		Config:         cfg,
 		Log:            log,
 	}, nil
@@ -227,6 +236,7 @@ func loadConfig() Config {
 		R2SecretKey:                os.Getenv("R2_SECRET_KEY"),
 		R2Bucket:                   os.Getenv("R2_BUCKET"),
 		R2PublicURL:                os.Getenv("R2_PUBLIC_URL"),
+		IPAPIKey:                   os.Getenv("IPAPI_KEY"),
 		DB: postgres.DBConfig{
 			Host:     os.Getenv("BLUEPRINT_DB_HOST"),
 			Port:     os.Getenv("BLUEPRINT_DB_PORT"),

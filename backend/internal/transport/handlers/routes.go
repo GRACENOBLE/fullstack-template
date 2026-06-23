@@ -63,6 +63,9 @@ func (h *Handler) RegisterRoutes(rps float64, burst int, sentryDSN string) http.
 	if h.verifier != nil {
 		api.Use(middleware.FirebaseAuth(h.verifier))
 	}
+	if h.geoLocator != nil {
+		api.Use(middleware.GeoFromRequest(h.geoLocator))
+	}
 	api.GET("/me", h.MeHandler)
 
 	if h.fcmTokenRepo != nil {

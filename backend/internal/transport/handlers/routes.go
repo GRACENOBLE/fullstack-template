@@ -67,6 +67,10 @@ func (h *Handler) RegisterRoutes(rps float64, burst int, sentryDSN string) http.
 		api.Use(middleware.GeoFromRequest(h.geoLocator))
 	}
 	api.GET("/me", h.MeHandler)
+	if h.userRepo != nil {
+		api.PATCH("/me", h.UpdateMeHandler)
+		api.DELETE("/me", h.DeleteMeHandler)
+	}
 
 	if h.fcmTokenRepo != nil {
 		api.POST("/fcm/register", h.RegisterFCMToken)

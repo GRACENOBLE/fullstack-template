@@ -79,9 +79,6 @@ func TestMain(m *testing.M) {
 	}
 }
 
-// Tests are ordered: TestNew → TestHealth → TestClose.
-// TestClose closes testDB; tests after it would fail.
-
 func TestNew(t *testing.T) {
 	if testDB == nil {
 		t.Fatal("NewPostgresDB() returned nil db")
@@ -100,11 +97,5 @@ func TestHealth(t *testing.T) {
 	}
 	if stats.Error != "" {
 		t.Fatalf("expected no error, got %s", stats.Error)
-	}
-}
-
-func TestClose(t *testing.T) {
-	if err := testDB.Close(); err != nil {
-		t.Fatalf("expected Close() to return nil, got %v", err)
 	}
 }

@@ -1,6 +1,8 @@
 package server
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -14,6 +16,8 @@ import (
 
 	"backend/internal/bootstrap"
 	"backend/internal/infrastructure/database/postgres"
+	"backend/internal/infrastructure/queue"
+	"backend/internal/infrastructure/streams"
 	"backend/internal/infrastructure/ws"
 	"backend/internal/transport/handlers"
 	"backend/internal/usecase"
@@ -40,6 +44,8 @@ func NewServer(app *bootstrap.App, hub *ws.Hub) (*http.Server, error) {
 		fcmTokenRepo = postgres.NewFCMTokenRepository(app.DB)
 	}
 
+	userRepo := postgres.NewUserRepository(app.DB)
+
 	// Build Asynqmon UI handler when Redis is available.
 	var queueUI http.Handler
 	if app.Config.RedisURL != "" {
@@ -56,7 +62,28 @@ func NewServer(app *bootstrap.App, hub *ws.Hub) (*http.Server, error) {
 		}
 	}
 
-	h := handlers.NewHandler(healthUC, app.Firebase, hub, app.Enqueuer, queueUI, app.FCMSender, fcmTokenRepo, app.EmailSender, app.StorageService, app.GeoLocator)
+	// Start Redis Streams consumer: fan-out UserCreated events → welcome email queue.
+	if app.StreamProducer != nil && app.Enqueuer != nil {
+		consumer, err := streams.NewConsumer(app.Config.RedisURL, streams.StreamUserCreated, "api", "api-1")
+		if err == nil {
+			go func() {
+				_ = consumer.Run(context.Background(), func(ctx context.Context, data []byte) error {
+					var evt streams.UserCreatedEvent
+					if err := json.Unmarshal(data, &evt); err != nil {
+						return err
+					}
+					payload, err := json.Marshal(queue.WelcomeEmailPayload{UserID: evt.UserID, Email: evt.Email})
+					if err != nil {
+						return err
+					}
+					return app.Enqueuer.Enqueue(ctx, queue.TypeWelcomeEmail, payload)
+				})
+				_ = consumer.Close()
+			}()
+		}
+	}
+
+	h := handlers.NewHandler(healthUC, app.Firebase, hub, app.Enqueuer, queueUI, app.FCMSender, fcmTokenRepo, app.EmailSender, app.StorageService, app.GeoLocator, app.StreamProducer, userRepo)
 
 	// Register DB pool metrics collector.
 	// AlreadyRegisteredError is silenced — only the first registration wins

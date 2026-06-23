@@ -31,8 +31,7 @@ type presignResponse struct {
 // @Security    BearerAuth
 func (h *Handler) PresignHandler(c *gin.Context) {
 	var req presignRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindJSON(c, &req) {
 		return
 	}
 

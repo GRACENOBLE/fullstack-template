@@ -10,8 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hibiken/asynq"
-
 	"backend/internal/bootstrap"
 	"backend/internal/infrastructure/queue"
 	"backend/internal/infrastructure/ws"
@@ -72,7 +70,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "startup failed: %v\n", err)
 			os.Exit(1)
 		}
-		worker.Register(queue.TypeWelcomeEmail, asynq.HandlerFunc(queue.HandleWelcomeEmail))
+		worker.Register(queue.TypeWelcomeEmail, queue.NewHandleWelcomeEmail(app.EmailSender))
 		go func() {
 			if err := worker.Run(workerCtx); err != nil {
 				slog.Error("queue: worker error", "err", err)

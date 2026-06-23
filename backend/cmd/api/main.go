@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -13,7 +12,6 @@ import (
 
 	"backend/internal/bootstrap"
 	"backend/internal/infrastructure/queue"
-	"backend/internal/infrastructure/streams"
 	"backend/internal/infrastructure/ws"
 	"backend/internal/server"
 )
@@ -80,31 +78,26 @@ func main() {
 		}()
 	}
 
-	// Start Redis Streams consumer: fan-out UserCreated events → welcome email queue.
-	var streamCancel context.CancelFunc
-	if app.StreamProducer != nil && app.Enqueuer != nil {
-		streamCtx, sCancel := context.WithCancel(context.Background())
-		streamCancel = sCancel
-		consumer, err := streams.NewConsumer(app.Config.RedisURL, streams.StreamUserCreated, "api", "api-1")
-		if err != nil {
-			slog.Error("streams: failed to create consumer", "err", err)
-		} else {
-			go func() {
-				_ = consumer.Run(streamCtx, func(ctx context.Context, data []byte) error {
-					var evt streams.UserCreatedEvent
-					if err := json.Unmarshal(data, &evt); err != nil {
-						return err
-					}
-					payload, err := json.Marshal(queue.WelcomeEmailPayload{UserID: evt.UserID, Email: evt.Email, Name: evt.Name})
-					if err != nil {
-						return err
-					}
-					return app.Enqueuer.Enqueue(ctx, queue.TypeWelcomeEmail, payload)
-				})
-				_ = consumer.Close()
-			}()
-		}
-	}
+	// --- Redis Streams consumer (unwired — add when you have a concrete use case) ---
+	// The streams infrastructure (Producer, Consumer, events) is fully implemented.
+	// Wire a consumer here following this pattern when you need it:
+	//
+	//   streamCtx, streamCancel := context.WithCancel(context.Background())
+	//   consumer, err := streams.NewConsumer(app.Config.RedisURL, streams.StreamUserCreated, "api", "api-1")
+	//   if err != nil {
+	//       slog.Error("streams: failed to create consumer", "err", err)
+	//   } else {
+	//       go func() {
+	//           _ = consumer.Run(streamCtx, func(ctx context.Context, data []byte) error {
+	//               var evt streams.UserCreatedEvent
+	//               if err := json.Unmarshal(data, &evt); err != nil { return err }
+	//               payload, _ := json.Marshal(queue.WelcomeEmailPayload{UserID: evt.UserID, Email: evt.Email, Name: evt.Name})
+	//               return app.Enqueuer.Enqueue(ctx, queue.TypeWelcomeEmail, payload)
+	//           })
+	//           _ = consumer.Close()
+	//       }()
+	//   }
+	//   // In the shutdown sequence below, call: streamCancel()
 
 	srv, err := server.NewServer(app, hub)
 	if err != nil {
@@ -122,9 +115,6 @@ func main() {
 
 	<-done
 
-	if streamCancel != nil {
-		streamCancel() // stop streams consumer
-	}
 	if workerCancel != nil {
 		workerCancel() // stop worker before hub (in-flight jobs drain first)
 	}

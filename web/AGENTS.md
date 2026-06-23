@@ -28,6 +28,8 @@ app/                        # Next.js App Router — routes only (no business lo
   layout.tsx                # root layout: Geist fonts, global CSS, <html>/<body>
   page.tsx                  # home page (Server Component)
   globals.css               # Tailwind v4 import + CSS variable definitions
+  (auth)/                   # route group for unauthenticated pages (login, register…)
+  (dashboard)/              # route group for authenticated/protected pages
 components/
   layout/                   # AppShell, Sidebar, Navbar, Footer
   common/                   # reusable cross-feature UI (Avatar, Badge, Spinner…)

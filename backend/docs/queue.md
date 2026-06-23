@@ -1,6 +1,6 @@
 ---
 topic: queue
-last_verified: 2026-06-15
+last_verified: 2026-06-23
 sources:
   - internal/usecase/enqueuer.go
   - internal/infrastructure/queue/tasks.go
@@ -36,8 +36,11 @@ const (
 type WelcomeEmailPayload struct {
     UserID string `json:"user_id"`
     Email  string `json:"email"`
+    Name   string `json:"name"`
 }
 ```
+
+`Name` is used by `NewHandleWelcomeEmail` as the display name in the welcome email. When empty, the handler falls back to `Email`.
 
 Both the enqueuer (caller side) and the handler (worker side) import these constants so
 the string is never duplicated.
@@ -116,7 +119,7 @@ if app.Config.RedisURL != "" {
     workerCancel = wCancel
     worker, err := queue.NewWorker(app.Config.RedisURL)
     // ...
-    worker.Register(queue.TypeWelcomeEmail, asynq.HandlerFunc(queue.HandleWelcomeEmail))
+    worker.Register(queue.TypeWelcomeEmail, queue.NewHandleWelcomeEmail(app.EmailSender))
     go func() {
         if err := worker.Run(workerCtx); err != nil {
             slog.Error("queue: worker error", "err", err)
@@ -139,19 +142,19 @@ can still reach the hub during drain.
 
 ## Task handlers
 
-Handler functions have the signature `func(context.Context, *asynq.Task) error` and live
-in `internal/infrastructure/queue/handlers.go`:
+Handler functions live in `internal/infrastructure/queue/handlers.go`.
+They are constructed via a `New*` function that closes over dependencies (e.g. `EmailSender`),
+rather than being plain `func(context.Context, *asynq.Task) error` functions.
 
 ```go
-func HandleWelcomeEmail(_ context.Context, t *asynq.Task) error {
-    var p WelcomeEmailPayload
-    if err := json.Unmarshal(t.Payload(), &p); err != nil {
-        return fmt.Errorf("welcome email: unmarshal payload: %w", err)
-    }
-    slog.Info("queue: welcome email task received", "user_id", p.UserID, "email", p.Email)
-    return nil
-}
+// NewHandleWelcomeEmail returns an asynq.HandlerFunc that sends a welcome email via sender.
+// If sender is nil, the task is acknowledged without sending (graceful degradation).
+func NewHandleWelcomeEmail(sender usecase.EmailSender) asynq.HandlerFunc
 ```
+
+Internally it unmarshals `WelcomeEmailPayload`, falls back to `p.Email` when `p.Name` is
+empty, then calls `sender.SendWelcomeEmail`. A nil `sender` is accepted silently so the
+worker starts cleanly even when Mailjet is not configured.
 
 Returning a non-nil error causes Asynq to retry the task (up to its configured retry limit).
 
@@ -159,11 +162,12 @@ Returning a non-nil error causes Asynq to retry the task (up to its configured r
 
 1. Add a `Type<Name> = "<category>:<action>"` constant and `<Name>Payload` struct to
    `internal/infrastructure/queue/tasks.go`.
-2. Write a `Handle<Name>(ctx context.Context, t *asynq.Task) error` function in
-   `internal/infrastructure/queue/handlers.go`.
+2. Write a `NewHandle<Name>(dep SomeDep) asynq.HandlerFunc` constructor in
+   `internal/infrastructure/queue/handlers.go`. Close over any dependencies (e.g. `EmailSender`).
+   The returned `HandlerFunc` should gracefully no-op when a nil dependency is passed.
 3. Register the handler in `cmd/api/main.go`:
    ```go
-   worker.Register(queue.Type<Name>, asynq.HandlerFunc(queue.Handle<Name>))
+   worker.Register(queue.Type<Name>, queue.NewHandle<Name>(dep))
    ```
 4. Enqueue from the relevant use case or handler using `app.Enqueuer.Enqueue(ctx, queue.Type<Name>, payload)`.
 
@@ -189,12 +193,13 @@ The UI is not mounted in staging or production (`gin.ReleaseMode`).
 
 ## Testing
 
-**Unit tests** call handler functions directly with `asynq.NewTask` — no Redis required:
+**Unit tests** call the constructed handler directly with `asynq.NewTask` — no Redis required:
 
 ```go
-payload, _ := json.Marshal(queue.WelcomeEmailPayload{UserID: "u1", Email: "a@b.com"})
+payload, _ := json.Marshal(queue.WelcomeEmailPayload{UserID: "u1", Email: "a@b.com", Name: "Alice"})
 task := asynq.NewTask(queue.TypeWelcomeEmail, payload)
-err := queue.HandleWelcomeEmail(context.Background(), task)
+handler := queue.NewHandleWelcomeEmail(mockSender) // or nil to test graceful degradation
+err := handler(context.Background(), task)
 // assert err == nil
 ```
 

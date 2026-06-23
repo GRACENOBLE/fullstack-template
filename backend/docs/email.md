@@ -1,11 +1,15 @@
 ---
-title: Email (Mailjet)
+topic: email
 last_verified: 2026-06-23
 sources:
   - internal/usecase/email.go
   - internal/infrastructure/email/mailjet.go
   - internal/infrastructure/email/templates/welcome.html
+  - internal/infrastructure/queue/handlers.go
+  - internal/infrastructure/queue/tasks.go
   - internal/bootstrap/bootstrap.go
+  - internal/server/server.go
+  - internal/transport/handlers/handler.go
 ---
 
 # Email (Mailjet)
@@ -51,6 +55,21 @@ var templateFS embed.FS
 ```
 
 `templates/welcome.html` is a Go `html/template` file. The only template data value currently used is `{{.Name}}` (the recipient's display name). `renderWelcomeTemplate` parses and executes the template on each call and returns the rendered HTML string.
+
+### How welcome email is triggered
+
+The welcome email is sent via the Asynq queue (not directly from a handler). The Asynq
+task handler `NewHandleWelcomeEmail(sender)` in `internal/infrastructure/queue/handlers.go`
+calls `sender.SendWelcomeEmail` with the name from `WelcomeEmailPayload.Name`.
+When `WelcomeEmailPayload.Name` is empty the handler falls back to `WelcomeEmailPayload.Email`
+as the display name.
+
+```go
+// Triggered when a TypeWelcomeEmail task is dequeued.
+func NewHandleWelcomeEmail(sender usecase.EmailSender) asynq.HandlerFunc
+```
+
+`sender` is nil when `MAILJET_API_KEY` is not set; the handler no-ops gracefully in that case.
 
 ### Wiring (bootstrap)
 

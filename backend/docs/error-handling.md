@@ -4,6 +4,7 @@ last_verified: 2026-06-23
 sources:
   - internal/infrastructure/database/postgres/health_repository.go
   - internal/transport/handlers/health_handler.go
+  - internal/transport/handlers/validation.go
   - cmd/api/main.go
 ---
 
@@ -71,15 +72,24 @@ func (h *Handler) getItemHandler(c *gin.Context) {
 Never expose internal error messages to clients. Log the original error server-side.
 
 ## Request binding errors
-Always validate and return 400 on bad input:
+Use the shared helpers in `internal/transport/handlers/validation.go` — do not call `c.ShouldBindJSON` / `c.ShouldBindQuery` directly in handlers.
 
 ```go
-var input MyRequest
-if err := c.ShouldBindJSON(&input); err != nil {
-    c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+// internal/transport/handlers/validation.go
+func bindJSON(c *gin.Context, dst any) bool   // writes 400 {"error":"invalid request body"} on failure
+func bindQuery(c *gin.Context, dst any) bool  // writes 400 {"error":"invalid query parameters"} on failure
+```
+
+Both helpers return `false` and write the 400 response on failure, so the handler just returns immediately:
+
+```go
+var req updateMeRequest
+if !bindJSON(c, &req) {
     return
 }
 ```
+
+The stable message strings (`"invalid request body"`, `"invalid query parameters"`) never expose raw validation errors to the client.
 
 ## Error wrapping
 Use `fmt.Errorf("context: %w", err)` when adding context to returned errors so callers can use `errors.Is` / `errors.As`.

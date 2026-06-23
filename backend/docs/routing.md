@@ -7,6 +7,8 @@ sources:
   - internal/transport/handlers/hello_handler.go
   - internal/transport/handlers/health_handler.go
   - internal/transport/handlers/auth_handler.go
+  - internal/transport/handlers/me_handler.go
+  - internal/transport/handlers/validation.go
   - internal/transport/middleware/logger.go
   - internal/server/server.go
   - cmd/api/main.go
@@ -18,14 +20,18 @@ sources:
 ```go
 // internal/transport/handlers/handler.go
 type Handler struct {
-    healthUC     usecase.HealthUseCase
-    verifier     usecase.FirebaseTokenVerifier // nil disables auth (dev only)
-    hub          *ws.Hub
-    enqueuer     usecase.Enqueuer           // nil when REDIS_URL is not set
-    queueUI      http.Handler               // nil disables /admin/queues route
-    fcmSender    usecase.NotificationSender // nil when Firebase is not configured
-    fcmTokenRepo usecase.FCMTokenRepository // nil when Firebase is not configured
-    emailSender  usecase.EmailSender        // nil when MAILJET_API_KEY/SECRET_KEY are not set
+    healthUC       usecase.HealthUseCase
+    verifier       usecase.FirebaseTokenVerifier // nil disables auth (dev only)
+    hub            *ws.Hub
+    enqueuer       usecase.Enqueuer           // nil when REDIS_URL is not set
+    queueUI        http.Handler               // nil disables /admin/queues route
+    fcmSender      usecase.NotificationSender // nil when Firebase is not configured
+    fcmTokenRepo   usecase.FCMTokenRepository // nil when Firebase is not configured
+    emailSender    usecase.EmailSender        // nil when MAILJET_API_KEY is not set
+    storageService usecase.StorageService     // nil when R2_ACCOUNT_ID is not set
+    geoLocator     usecase.GeoLocator         // nil when geo client is not configured
+    streamProducer usecase.StreamProducer     // nil when REDIS_URL is not set
+    userRepo       usecase.UserRepository     // nil when not wired
 }
 
 func NewHandler(
@@ -37,9 +43,13 @@ func NewHandler(
     fcmSender usecase.NotificationSender,
     fcmTokenRepo usecase.FCMTokenRepository,
     emailSender usecase.EmailSender,
+    storageService usecase.StorageService,
+    geoLocator usecase.GeoLocator,
+    streamProducer usecase.StreamProducer,
+    userRepo usecase.UserRepository,
 ) *Handler
 ```
-The `Handler` struct holds use case interfaces and infrastructure dependencies — not `*sql.DB` directly. `verifier` is stored on the struct (not passed to `RegisterRoutes`) so the WebSocket handler can read it inline for query-param auth. `fcmTokenRepo` and `fcmSender` are nil when `FIREBASE_PROJECT_ID` is not set; their routes are only registered when non-nil.
+The `Handler` struct holds use case interfaces and infrastructure dependencies — not `*sql.DB` directly. `verifier` is stored on the struct (not passed to `RegisterRoutes`) so the WebSocket handler can read it inline for query-param auth. `fcmTokenRepo` and `fcmSender` are nil when `FIREBASE_PROJECT_ID` is not set; their routes are only registered when non-nil. `userRepo` is always wired (constructed unconditionally in `server.NewServer`).
 
 ## Wiring (server.go)
 `internal/server/server.go` contains `NewServer(app *bootstrap.App, hub *ws.Hub) (*http.Server, error)` — wiring only, no logic.
@@ -54,12 +64,14 @@ if app.Firebase != nil {
     fcmTokenRepo = postgres.NewFCMTokenRepository(app.DB)
 }
 
+userRepo := postgres.NewUserRepository(app.DB)
+
 var queueUI http.Handler
 if app.Config.RedisURL != "" {
     // parse URL and build asynqmon.New(...)
 }
 
-h := handlers.NewHandler(healthUC, app.Firebase, hub, app.Enqueuer, queueUI, app.FCMSender, fcmTokenRepo, app.EmailSender)
+h := handlers.NewHandler(healthUC, app.Firebase, hub, app.Enqueuer, queueUI, app.FCMSender, fcmTokenRepo, app.EmailSender, app.StorageService, app.GeoLocator, app.StreamProducer, userRepo)
 
 // Register DB pool metrics collector (AlreadyRegisteredError is silenced).
 prometheus.Register(postgres.NewDBStatsCollector(app.DB))
@@ -119,11 +131,23 @@ func (h *Handler) RegisterRoutes(rps float64, burst int, sentryDSN string) http.
     if h.verifier != nil {
         api.Use(middleware.FirebaseAuth(h.verifier))
     }
+    if h.geoLocator != nil {
+        api.Use(middleware.GeoFromRequest(h.geoLocator))
+    }
     api.GET("/me", h.MeHandler)
+    if h.userRepo != nil {
+        api.PATCH("/me", h.UpdateMeHandler)
+        api.DELETE("/me", h.DeleteMeHandler)
+    }
 
     if h.fcmTokenRepo != nil {
         api.POST("/fcm/register", h.RegisterFCMToken)
         api.DELETE("/fcm/unregister", h.UnregisterFCMToken)
+    }
+
+    if h.storageService != nil {
+        api.POST("/storage/presign", h.PresignHandler)
+        api.DELETE("/storage/:key", h.DeleteObjectHandler)
     }
 
     return r
@@ -160,10 +184,16 @@ Allowed methods: GET, POST, PUT, DELETE, OPTIONS, PATCH.
 | GET | `/swagger/*any` | none | Swagger UI | `routes.go` |
 | GET | `/admin/queues` | none (debug mode only) | Asynqmon job-monitoring UI | `routes.go` |
 | GET | `/api/v1/me` | FirebaseAuth header | `MeHandler` — returns verified `FirebaseToken` claims | `auth_handler.go` |
+| PATCH | `/api/v1/me` | FirebaseAuth header | `UpdateMeHandler` — upserts user profile; returns `domain.User` | `me_handler.go` |
+| DELETE | `/api/v1/me` | FirebaseAuth header | `DeleteMeHandler` — deletes user profile record; 204 on success | `me_handler.go` |
 | POST | `/api/v1/fcm/register` | FirebaseAuth header | `RegisterFCMToken` — stores device FCM token | `fcm_handler.go` |
 | DELETE | `/api/v1/fcm/unregister` | FirebaseAuth header | `UnregisterFCMToken` — removes device FCM token | `fcm_handler.go` |
+| POST | `/api/v1/storage/presign` | FirebaseAuth header | `PresignHandler` — returns a presigned R2 upload URL | `storage_handler.go` |
+| DELETE | `/api/v1/storage/:key` | FirebaseAuth header | `DeleteObjectHandler` — deletes an R2 object | `storage_handler.go` |
 
 FCM routes are only registered when `h.fcmTokenRepo != nil` (i.e., `FIREBASE_PROJECT_ID` is set).
+Storage routes are only registered when `h.storageService != nil` (i.e., `R2_ACCOUNT_ID` is set).
+`PATCH /api/v1/me` and `DELETE /api/v1/me` are registered when `h.userRepo != nil` (always wired).
 
 ## Graceful shutdown
 Wired in `cmd/api/main.go` via `signal.NotifyContext` for SIGINT/SIGTERM.
@@ -181,5 +211,5 @@ Do not add shutdown logic to `internal/` — it belongs in `cmd/`.
 6. Register the route in `RegisterRoutes()`: `r.METHOD("/path", h.handlerName)`.
 7. Add handler as `func (h *Handler) handlerName(c *gin.Context)` in its own file.
 8. Always pass `c.Request.Context()` to use case calls.
-9. For request body: bind with `c.ShouldBindJSON(&input)`, return 400 on error.
-10. For path params: `c.Param("id")`. For query params: `c.Query("key")`.
+9. For request body: use the `bindJSON(c, &input) bool` helper (returns `false` and writes 400 on error). For query params: use `bindQuery(c, &input) bool`. Both helpers are defined in `internal/transport/handlers/validation.go` and return stable error messages ("invalid request body" / "invalid query parameters") rather than exposing raw validation errors.
+10. For path params: `c.Param("id")`.

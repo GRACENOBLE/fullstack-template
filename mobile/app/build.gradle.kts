@@ -40,6 +40,23 @@ android {
             )
         }
     }
+
+    // Fail fast: GOOGLE_WEB_CLIENT_ID must be set in local.properties for release builds.
+    // (The resource default_web_client_id from google-services.json is preferred at runtime,
+    //  but BuildConfig is the fallback and must not be empty in production.)
+    tasks.configureEach {
+        if (name.contains("Release", ignoreCase = true) &&
+            (name.startsWith("assemble") || name.startsWith("bundle"))
+        ) {
+            doFirst {
+                val webClientId = localProps.getProperty("GOOGLE_WEB_CLIENT_ID", "")
+                check(webClientId.isNotEmpty()) {
+                    "GOOGLE_WEB_CLIENT_ID must be set in local.properties for release builds. " +
+                        "Add: GOOGLE_WEB_CLIENT_ID=<your-oauth2-web-client-id>"
+                }
+            }
+        }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11

@@ -1,7 +1,5 @@
 package com.company.template.auth
 
-import android.app.Activity
-import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,13 +17,15 @@ import org.junit.Test
 // --------------- Fake repository (no Mockito) ---------------
 
 class FakeAuthRepository : AuthRepository {
-    private val _authStateFlow = MutableStateFlow<FirebaseUser?>(null)
-    override val authStateFlow: StateFlow<FirebaseUser?> = _authStateFlow
+    private val _authStateFlow = MutableStateFlow<User?>(null)
+    override val authStateFlow: StateFlow<User?> = _authStateFlow
 
     var signInResult: Result<Unit> = Result.success(Unit)
     var registerResult: Result<Unit> = Result.success(Unit)
     var googleSignInResult: Result<Unit> = Result.success(Unit)
     var signOutCalled = false
+
+    fun setUser(user: User?) { _authStateFlow.value = user }
 
     override suspend fun signInWithEmail(email: String, password: String): Result<Unit> =
         signInResult
@@ -33,7 +33,7 @@ class FakeAuthRepository : AuthRepository {
     override suspend fun registerWithEmail(name: String, email: String, password: String): Result<Unit> =
         registerResult
 
-    override suspend fun signInWithGoogle(activity: Activity): Result<Unit> = googleSignInResult
+    override suspend fun signInWithGoogle(googleIdToken: String): Result<Unit> = googleSignInResult
 
     override suspend fun signOut() {
         signOutCalled = true
@@ -62,23 +62,25 @@ class AuthViewModelTest {
     }
 
     @Test
-    fun `signIn emits Loading then Success on repository success`() = runTest {
-        val states = mutableListOf<AuthUiState>()
-        // UnconfinedTestDispatcher runs coroutines eagerly so we can observe synchronously
+    fun `initial state is Idle`() {
+        assertEquals(AuthUiState.Idle, viewModel.uiState.value)
+    }
+
+    @Test
+    fun `signIn emits Success on repository success`() = runTest {
         fakeRepo.signInResult = Result.success(Unit)
-
-        viewModel.signIn("test@example.com", "password")
-
-        // After UnconfinedTestDispatcher finishes, final state should be Success
+        viewModel.updateLoginEmail("test@example.com")
+        viewModel.updateLoginPassword("password")
+        viewModel.signIn()
         assertEquals(AuthUiState.Success, viewModel.uiState.value)
     }
 
     @Test
     fun `signIn emits Error on repository failure`() = runTest {
         fakeRepo.signInResult = Result.failure(Exception("Invalid credentials"))
-
-        viewModel.signIn("test@example.com", "wrong")
-
+        viewModel.updateLoginEmail("test@example.com")
+        viewModel.updateLoginPassword("wrong")
+        viewModel.signIn()
         val state = viewModel.uiState.value
         assertTrue(state is AuthUiState.Error)
         assertEquals("Invalid credentials", (state as AuthUiState.Error).message)
@@ -87,16 +89,21 @@ class AuthViewModelTest {
     @Test
     fun `register emits Success on repository success`() = runTest {
         fakeRepo.registerResult = Result.success(Unit)
-
-        viewModel.register("Alice", "alice@example.com", "password1", "password1")
-
+        viewModel.updateRegisterName("Alice")
+        viewModel.updateRegisterEmail("alice@example.com")
+        viewModel.updateRegisterPassword("password1")
+        viewModel.updateRegisterConfirmPassword("password1")
+        viewModel.register()
         assertEquals(AuthUiState.Success, viewModel.uiState.value)
     }
 
     @Test
     fun `register emits Error when passwords do not match`() = runTest {
-        viewModel.register("Alice", "alice@example.com", "password1", "password2")
-
+        viewModel.updateRegisterName("Alice")
+        viewModel.updateRegisterEmail("alice@example.com")
+        viewModel.updateRegisterPassword("password1")
+        viewModel.updateRegisterConfirmPassword("password2")
+        viewModel.register()
         val state = viewModel.uiState.value
         assertTrue(state is AuthUiState.Error)
         assertEquals("Passwords do not match", (state as AuthUiState.Error).message)
@@ -105,22 +112,72 @@ class AuthViewModelTest {
     @Test
     fun `register emits Error on repository failure`() = runTest {
         fakeRepo.registerResult = Result.failure(Exception("Email already in use"))
-
-        viewModel.register("Alice", "alice@example.com", "password1", "password1")
-
+        viewModel.updateRegisterName("Alice")
+        viewModel.updateRegisterEmail("alice@example.com")
+        viewModel.updateRegisterPassword("password1")
+        viewModel.updateRegisterConfirmPassword("password1")
+        viewModel.register()
         val state = viewModel.uiState.value
         assertTrue(state is AuthUiState.Error)
         assertEquals("Email already in use", (state as AuthUiState.Error).message)
     }
 
     @Test
-    fun `initial state is Idle`() {
+    fun `signOut calls repository signOut and resets uiState to Idle`() = runTest {
+        fakeRepo.signInResult = Result.success(Unit)
+        viewModel.updateLoginEmail("test@example.com")
+        viewModel.updateLoginPassword("pw")
+        viewModel.signIn()
+        assertEquals(AuthUiState.Success, viewModel.uiState.value)
+
+        viewModel.signOut()
+        assertTrue(fakeRepo.signOutCalled)
         assertEquals(AuthUiState.Idle, viewModel.uiState.value)
     }
 
     @Test
-    fun `signOut calls repository signOut`() = runTest {
-        viewModel.signOut()
-        assertTrue(fakeRepo.signOutCalled)
+    fun `clearError resets Error state to Idle`() = runTest {
+        fakeRepo.signInResult = Result.failure(Exception("Bad"))
+        viewModel.updateLoginEmail("x@y.com")
+        viewModel.updateLoginPassword("pw")
+        viewModel.signIn()
+        assertTrue(viewModel.uiState.value is AuthUiState.Error)
+
+        viewModel.clearError()
+        assertEquals(AuthUiState.Idle, viewModel.uiState.value)
+    }
+
+    @Test
+    fun `updating login field clears existing error`() = runTest {
+        fakeRepo.signInResult = Result.failure(Exception("Bad"))
+        viewModel.updateLoginEmail("x@y.com")
+        viewModel.updateLoginPassword("pw")
+        viewModel.signIn()
+        assertTrue(viewModel.uiState.value is AuthUiState.Error)
+
+        viewModel.updateLoginEmail("new@example.com")
+        assertEquals(AuthUiState.Idle, viewModel.uiState.value)
+    }
+
+    @Test
+    fun `loginForm reflects field updates`() {
+        viewModel.updateLoginEmail("a@b.com")
+        viewModel.updateLoginPassword("secret")
+        val form = viewModel.loginForm.value
+        assertEquals("a@b.com", form.email)
+        assertEquals("secret", form.password)
+    }
+
+    @Test
+    fun `registerForm reflects field updates`() {
+        viewModel.updateRegisterName("Bob")
+        viewModel.updateRegisterEmail("bob@example.com")
+        viewModel.updateRegisterPassword("pass")
+        viewModel.updateRegisterConfirmPassword("pass")
+        val form = viewModel.registerForm.value
+        assertEquals("Bob", form.name)
+        assertEquals("bob@example.com", form.email)
+        assertEquals("pass", form.password)
+        assertEquals("pass", form.confirmPassword)
     }
 }

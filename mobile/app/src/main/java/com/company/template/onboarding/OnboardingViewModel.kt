@@ -12,10 +12,11 @@ class OnboardingViewModel(private val repo: OnboardingRepository) : ViewModel() 
 
     fun hasSeenOnboarding(): Flow<Boolean> = repo.hasSeenOnboarding()
 
-    fun markSeen(onComplete: () -> Unit = {}) {
+    fun markSeen(onComplete: () -> Unit = {}, onError: (Throwable) -> Unit = {}) {
         viewModelScope.launch {
-            repo.markSeen()
-            onComplete()
+            runCatching { repo.markSeen() }
+                .onSuccess { onComplete() }
+                .onFailure { onError(it) }
         }
     }
 

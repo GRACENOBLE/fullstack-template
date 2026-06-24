@@ -58,7 +58,7 @@ class OnboardingViewModelTest {
     @Test
     fun `markSeen calls repository and flow emits true`() = runTest {
         var callbackInvoked = false
-        viewModel.markSeen { callbackInvoked = true }
+        viewModel.markSeen(onComplete = { callbackInvoked = true })
 
         assertTrue(fakeRepo.markSeenCalled)
         assertTrue(callbackInvoked)

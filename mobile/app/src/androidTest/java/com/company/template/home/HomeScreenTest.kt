@@ -1,5 +1,6 @@
 package com.company.template.home
 
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -66,7 +67,8 @@ class HomeScreenTest {
                 HomeScreen(displayName = "", onSignOut = {})
             }
         }
-        // Heading still shows
         composeTestRule.onNodeWithText("Welcome back!").assertIsDisplayed()
+        // An empty string should not produce a visible name node
+        composeTestRule.onNodeWithText("").assertDoesNotExist()
     }
 }

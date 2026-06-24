@@ -1,16 +1,8 @@
 package com.company.template.auth
 
-import android.app.Activity
 import android.content.Context
-import android.content.Intent
-import android.provider.Settings
+import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
-import androidx.credentials.CustomCredential
-import androidx.credentials.GetCredentialRequest
-import androidx.credentials.exceptions.NoCredentialException
-import com.company.template.BuildConfig
-import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
-import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
@@ -22,6 +14,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.tasks.await
 
@@ -32,19 +25,16 @@ class FirebaseAuthRepository(
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    private val _authStateFlow = callbackFlow<FirebaseUser?> {
-        val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
-            trySend(firebaseAuth.currentUser)
-        }
+    override val authStateFlow: StateFlow<User?> = callbackFlow<FirebaseUser?> {
+        val listener = FirebaseAuth.AuthStateListener { trySend(it.currentUser) }
         auth.addAuthStateListener(listener)
         awaitClose { auth.removeAuthStateListener(listener) }
     }
-
-    override val authStateFlow: StateFlow<FirebaseUser?> = _authStateFlow
+        .map { it?.toDomain() }
         .stateIn(
             scope = scope,
             started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = auth.currentUser,
+            initialValue = auth.currentUser?.toDomain(),
         )
 
     override suspend fun signInWithEmail(email: String, password: String): Result<Unit> =
@@ -59,71 +49,29 @@ class FirebaseAuthRepository(
         password: String,
     ): Result<Unit> = runCatching {
         val result = auth.createUserWithEmailAndPassword(email, password).await()
-        val profileUpdates = UserProfileChangeRequest.Builder()
-            .setDisplayName(name)
-            .build()
-        result.user?.updateProfile(profileUpdates)?.await()
+        result.user?.updateProfile(
+            UserProfileChangeRequest.Builder().setDisplayName(name).build()
+        )?.await()
         Unit
     }
 
-    override suspend fun signInWithGoogle(activity: Activity): Result<Unit> = runCatching {
-        val webClientId = resolveWebClientId()
-        check(webClientId.isNotEmpty()) {
-            "Google Sign-In not configured.\n" +
-                "Option 1 (recommended): Enable Google Sign-In in Firebase Console " +
-                "(Authentication → Sign-in method → Google) then re-download google-services.json.\n" +
-                "Option 2: Add GOOGLE_WEB_CLIENT_ID=<web-client-id> to mobile/local.properties."
-        }
-
-        val credentialManager = CredentialManager.create(activity)
-        // GetSignInWithGoogleOption always shows the full account picker — no One Tap suppression
-        val googleSignInOption = GetSignInWithGoogleOption.Builder(webClientId).build()
-
-        val request = GetCredentialRequest.Builder()
-            .addCredentialOption(googleSignInOption)
-            .build()
-
-        val credentialResult = try {
-            credentialManager.getCredential(activity, request)
-        } catch (e: NoCredentialException) {
-            // No Google account on this device — send the user to add one
-            activity.startActivity(
-                Intent(Settings.ACTION_ADD_ACCOUNT).apply {
-                    putExtra(Settings.EXTRA_ACCOUNT_TYPES, arrayOf("com.google"))
-                }
-            )
-            error("No Google account found. Please add a Google account and try again.")
-        }
-
-        val credential = credentialResult.credential
-        check(
-            credential is CustomCredential &&
-                credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
-        ) { "Unexpected credential type: ${credential.type}" }
-
-        val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
-        val firebaseCredential = GoogleAuthProvider.getCredential(
-            googleIdTokenCredential.idToken,
-            null,
-        )
-        auth.signInWithCredential(firebaseCredential).await()
+    override suspend fun signInWithGoogle(googleIdToken: String): Result<Unit> = runCatching {
+        val credential = GoogleAuthProvider.getCredential(googleIdToken, null)
+        auth.signInWithCredential(credential).await()
         Unit
     }
 
     override suspend fun signOut() {
         auth.signOut()
+        // Clear saved Google credential so the next sign-in shows the account picker
+        CredentialManager.create(context)
+            .clearCredentialState(ClearCredentialStateRequest())
     }
 
-    // Prefer the resource generated by the google-services plugin from google-services.json;
-    // fall back to the BuildConfig field populated from local.properties.
-    private fun resolveWebClientId(): String {
-        val resId = context.resources.getIdentifier(
-            "default_web_client_id", "string", context.packageName
-        )
-        if (resId != 0) {
-            val fromResource = context.getString(resId)
-            if (fromResource.isNotEmpty()) return fromResource
-        }
-        return BuildConfig.GOOGLE_WEB_CLIENT_ID
-    }
+    private fun FirebaseUser.toDomain() = User(
+        uid = uid,
+        email = email,
+        displayName = displayName,
+        photoUrl = photoUrl?.toString(),
+    )
 }

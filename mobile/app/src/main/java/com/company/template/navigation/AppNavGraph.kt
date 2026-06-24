@@ -13,7 +13,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.company.template.auth.AuthUiState
 import com.company.template.auth.AuthViewModel
-import com.google.firebase.auth.FirebaseUser
+import com.company.template.auth.User
 import com.company.template.auth.LoginScreen
 import com.company.template.auth.RegisterScreen
 import com.company.template.home.HomeScreen
@@ -29,11 +29,13 @@ fun AppNavGraph(
     appViewModel: AppViewModel,
     authViewModel: AuthViewModel,
     navController: NavHostController = rememberNavController(),
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val startDestination by appViewModel.startDestination.collectAsStateWithLifecycle()
     val authUiState by authViewModel.uiState.collectAsStateWithLifecycle()
-    val currentUser: FirebaseUser? by authViewModel.currentUser.collectAsStateWithLifecycle()
+    val currentUser: User? by authViewModel.currentUser.collectAsStateWithLifecycle()
+    val loginForm by authViewModel.loginForm.collectAsStateWithLifecycle()
+    val registerForm by authViewModel.registerForm.collectAsStateWithLifecycle()
     val activity = LocalContext.current as Activity
 
     // Navigate away from auth screens when the user successfully signs in
@@ -55,11 +57,12 @@ fun AppNavGraph(
     NavHost(
         navController = navController,
         startDestination = resolvedStart,
-        modifier = modifier
+        modifier = modifier,
     ) {
         composable(ROUTE_ONBOARDING) {
             OnboardingScreen(
                 onGetStarted = {
+                    appViewModel.markOnboardingSeen()
                     navController.navigate(ROUTE_LOGIN) {
                         popUpTo(ROUTE_ONBOARDING) { inclusive = true }
                     }
@@ -68,29 +71,31 @@ fun AppNavGraph(
         }
         composable(ROUTE_LOGIN) {
             LoginScreen(
+                loginForm = loginForm,
                 uiState = authUiState,
-                onSignIn = { email, password -> authViewModel.signIn(email, password) },
+                onEmailChange = authViewModel::updateLoginEmail,
+                onPasswordChange = authViewModel::updateLoginPassword,
+                onSignIn = authViewModel::signIn,
                 onSignInWithGoogle = { authViewModel.signInWithGoogle(activity) },
                 onNavigateToRegister = { navController.navigate(ROUTE_REGISTER) },
-                onClearError = authViewModel::clearError
             )
         }
         composable(ROUTE_REGISTER) {
             RegisterScreen(
+                registerForm = registerForm,
                 uiState = authUiState,
-                onRegister = { name, email, password, confirm ->
-                    authViewModel.register(name, email, password, confirm)
-                },
-                onNavigateToLogin = {
-                    navController.popBackStack()
-                },
-                onClearError = authViewModel::clearError
+                onNameChange = authViewModel::updateRegisterName,
+                onEmailChange = authViewModel::updateRegisterEmail,
+                onPasswordChange = authViewModel::updateRegisterPassword,
+                onConfirmPasswordChange = authViewModel::updateRegisterConfirmPassword,
+                onRegister = authViewModel::register,
+                onNavigateToLogin = { navController.popBackStack() },
             )
         }
         composable(ROUTE_HOME) {
             HomeScreen(
                 displayName = currentUser?.displayName ?: currentUser?.email ?: "",
-                onSignOut = { authViewModel.signOut() }
+                onSignOut = { authViewModel.signOut() },
             )
         }
     }

@@ -18,99 +18,87 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.company.template.ui.theme.TemplateTheme
 
+internal object RegisterTestTags {
+    const val CREATE_ACCOUNT_BUTTON = "register_create_account_button"
+}
+
 @Composable
 fun RegisterScreen(
+    registerForm: RegisterFormState,
     uiState: AuthUiState,
-    onRegister: (name: String, email: String, password: String, confirmPassword: String) -> Unit,
+    onNameChange: (String) -> Unit,
+    onEmailChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
+    onConfirmPasswordChange: (String) -> Unit,
+    onRegister: () -> Unit,
     onNavigateToLogin: () -> Unit,
-    onClearError: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-    var name by rememberSaveable { mutableStateOf("") }
-    var email by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
-    var confirmPassword by rememberSaveable { mutableStateOf("") }
-
     Column(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 32.dp, vertical = 48.dp),
         verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             text = "Create Account",
             style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary
+            color = MaterialTheme.colorScheme.primary,
         )
         Spacer(modifier = Modifier.height(32.dp))
         OutlinedTextField(
-            value = name,
-            onValueChange = {
-                name = it
-                if (uiState is AuthUiState.Error) onClearError()
-            },
+            value = registerForm.name,
+            onValueChange = onNameChange,
             label = { Text("Full Name") },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         )
         Spacer(modifier = Modifier.height(16.dp))
         OutlinedTextField(
-            value = email,
-            onValueChange = {
-                email = it
-                if (uiState is AuthUiState.Error) onClearError()
-            },
+            value = registerForm.email,
+            onValueChange = onEmailChange,
             label = { Text("Email") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         )
         Spacer(modifier = Modifier.height(16.dp))
         OutlinedTextField(
-            value = password,
-            onValueChange = {
-                password = it
-                if (uiState is AuthUiState.Error) onClearError()
-            },
+            value = registerForm.password,
+            onValueChange = onPasswordChange,
             label = { Text("Password") },
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         )
         Spacer(modifier = Modifier.height(16.dp))
         OutlinedTextField(
-            value = confirmPassword,
-            onValueChange = {
-                confirmPassword = it
-                if (uiState is AuthUiState.Error) onClearError()
-            },
+            value = registerForm.confirmPassword,
+            onValueChange = onConfirmPasswordChange,
             label = { Text("Confirm Password") },
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         )
         if (uiState is AuthUiState.Error) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = uiState.message,
                 color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall
+                style = MaterialTheme.typography.bodySmall,
             )
         }
         Spacer(modifier = Modifier.height(24.dp))
@@ -118,10 +106,12 @@ fun RegisterScreen(
             CircularProgressIndicator()
         } else {
             Button(
-                onClick = { onRegister(name, email, password, confirmPassword) },
-                enabled = name.isNotBlank() && email.isNotBlank() &&
-                    password.isNotBlank() && confirmPassword.isNotBlank(),
-                modifier = Modifier.fillMaxWidth()
+                onClick = onRegister,
+                enabled = registerForm.name.isNotBlank() && registerForm.email.isNotBlank() &&
+                    registerForm.password.isNotBlank() && registerForm.confirmPassword.isNotBlank(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag(RegisterTestTags.CREATE_ACCOUNT_BUTTON),
             ) {
                 Text(text = "Create Account")
             }
@@ -129,12 +119,12 @@ fun RegisterScreen(
         Spacer(modifier = Modifier.height(16.dp))
         Row(
             horizontalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
                 text = "Already have an account?",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
             )
             TextButton(onClick = onNavigateToLogin) {
                 Text(text = "Sign In")
@@ -148,10 +138,14 @@ fun RegisterScreen(
 fun RegisterScreenPreview() {
     TemplateTheme {
         RegisterScreen(
+            registerForm = RegisterFormState(),
             uiState = AuthUiState.Idle,
-            onRegister = { _, _, _, _ -> },
+            onNameChange = {},
+            onEmailChange = {},
+            onPasswordChange = {},
+            onConfirmPasswordChange = {},
+            onRegister = {},
             onNavigateToLogin = {},
-            onClearError = {}
         )
     }
 }

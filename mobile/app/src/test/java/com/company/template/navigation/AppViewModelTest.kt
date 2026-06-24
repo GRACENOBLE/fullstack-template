@@ -1,9 +1,8 @@
 package com.company.template.navigation
 
-import android.app.Activity
 import com.company.template.auth.AuthRepository
+import com.company.template.auth.User
 import com.company.template.onboarding.OnboardingRepository
-import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -22,10 +21,10 @@ import org.junit.Test
 // --------------- Fakes ---------------
 
 class FakeAuthRepositoryForNav : AuthRepository {
-    private val _authStateFlow = MutableStateFlow<FirebaseUser?>(null)
-    override val authStateFlow: StateFlow<FirebaseUser?> = _authStateFlow
+    private val _authStateFlow = MutableStateFlow<User?>(null)
+    override val authStateFlow: StateFlow<User?> = _authStateFlow
 
-    fun setUser(user: FirebaseUser?) {
+    fun setUser(user: User?) {
         _authStateFlow.value = user
     }
 
@@ -35,7 +34,7 @@ class FakeAuthRepositoryForNav : AuthRepository {
     override suspend fun registerWithEmail(name: String, email: String, password: String): Result<Unit> =
         Result.success(Unit)
 
-    override suspend fun signInWithGoogle(activity: Activity): Result<Unit> = Result.success(Unit)
+    override suspend fun signInWithGoogle(googleIdToken: String): Result<Unit> = Result.success(Unit)
 
     override suspend fun signOut() {
         _authStateFlow.value = null
@@ -104,16 +103,11 @@ class AppViewModelTest {
     @Test
     fun `startDestination is Home when user is signed in`() = runTest {
         fakeOnboarding.setSeen(true)
-        // We can't instantiate FirebaseUser directly in JVM tests, so we use a mock via anonymous
-        // object trick is not possible for a final class. We verify via the combine logic:
-        // user != null -> HOME. Since FirebaseUser is a final Android class, we skip null-user
-        // check and test that when auth flow emits non-null, we get HOME.
-        // Instead, we verify the LOGIN path here and document the HOME path tested indirectly.
-        fakeAuth.setUser(null)
+        fakeAuth.setUser(User(uid = "uid123", email = "a@b.com", displayName = "Alice", photoUrl = null))
         createViewModel()
 
         val dest = viewModel.startDestination.first { it != null }
-        assertEquals(StartDestination.LOGIN, dest)
+        assertEquals(StartDestination.HOME, dest)
     }
 
     @Test
@@ -128,5 +122,31 @@ class AppViewModelTest {
         fakeOnboarding.setSeen(true)
         val secondDest = viewModel.startDestination.first { it == StartDestination.LOGIN }
         assertEquals(StartDestination.LOGIN, secondDest)
+    }
+
+    @Test
+    fun `startDestination transitions to Login after sign out`() = runTest {
+        fakeOnboarding.setSeen(true)
+        fakeAuth.setUser(User(uid = "uid123", email = "a@b.com", displayName = "Alice", photoUrl = null))
+        createViewModel()
+
+        val homeDest = viewModel.startDestination.first { it == StartDestination.HOME }
+        assertEquals(StartDestination.HOME, homeDest)
+
+        fakeAuth.signOut()
+        val loginDest = viewModel.startDestination.first { it == StartDestination.LOGIN }
+        assertEquals(StartDestination.LOGIN, loginDest)
+    }
+
+    @Test
+    fun `markOnboardingSeen persists the flag`() = runTest {
+        fakeOnboarding.setSeen(false)
+        fakeAuth.setUser(null)
+        createViewModel()
+
+        viewModel.markOnboardingSeen()
+
+        val seen = fakeOnboarding.hasSeenOnboarding().first()
+        assertEquals(true, seen)
     }
 }

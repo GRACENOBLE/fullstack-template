@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 enum class StartDestination {
     ONBOARDING,
@@ -20,13 +21,13 @@ enum class StartDestination {
 
 class AppViewModel(
     authRepository: AuthRepository,
-    onboardingRepository: OnboardingRepository
+    private val onboardingRepository: OnboardingRepository,
 ) : ViewModel() {
 
     val startDestination: StateFlow<StartDestination?> =
         combine(
             onboardingRepository.hasSeenOnboarding(),
-            authRepository.authStateFlow
+            authRepository.authStateFlow,
         ) { hasSeen, user ->
             when {
                 user != null -> StartDestination.HOME
@@ -36,13 +37,19 @@ class AppViewModel(
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = null
+            initialValue = null,
         )
+
+    fun markOnboardingSeen() {
+        viewModelScope.launch {
+            runCatching { onboardingRepository.markSeen() }
+        }
+    }
 
     companion object {
         fun factory(
             authRepository: AuthRepository,
-            onboardingRepository: OnboardingRepository
+            onboardingRepository: OnboardingRepository,
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer { AppViewModel(authRepository, onboardingRepository) }
         }

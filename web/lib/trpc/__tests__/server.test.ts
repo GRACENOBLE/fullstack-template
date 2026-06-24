@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from 'vitest'
 
+vi.mock('@/auth', () => ({
+  auth: vi.fn().mockResolvedValue(null),
+}))
+
 vi.mock('next/headers', () => ({
   headers: vi.fn(async () => new Headers({ 'x-test': 'true' })),
 }))

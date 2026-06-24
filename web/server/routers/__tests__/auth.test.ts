@@ -29,4 +29,22 @@ describe('protectedProcedure', () => {
     const result = await caller.auth.session()
     expect(result).toEqual({ authenticated: true })
   })
+
+  it('throws UNAUTHORIZED for empty Bearer token', async () => {
+    const ctx = await makeContext({ authorization: 'Bearer ' })
+    const caller = appRouter.createCaller(ctx)
+    await expect(caller.auth.session()).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
+  })
+
+  it('throws UNAUTHORIZED for __session cookie with empty value', async () => {
+    const ctx = await makeContext({ cookie: '__session=' })
+    const caller = appRouter.createCaller(ctx)
+    await expect(caller.auth.session()).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
+  })
+
+  it('throws UNAUTHORIZED when __session= appears only in another cookie value', async () => {
+    const ctx = await makeContext({ cookie: 'other=__session=abc' })
+    const caller = appRouter.createCaller(ctx)
+    await expect(caller.auth.session()).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
+  })
 })

@@ -16,14 +16,21 @@ export const router = t.router
 export const createCallerFactory = t.createCallerFactory
 export const publicProcedure = t.procedure
 export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
-  // Read session token from Authorization header (Bearer) or __session cookie
   const authHeader = ctx.req.headers.get('authorization')
   const cookieHeader = ctx.req.headers.get('cookie')
 
-  const hasBearer = authHeader?.startsWith('Bearer ')
-  const hasSessionCookie = cookieHeader?.includes('__session=')
+  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null
+  const hasValidBearer = typeof bearerToken === 'string' && bearerToken.length > 0
 
-  if (!hasBearer && !hasSessionCookie) {
+  const sessionValue = cookieHeader
+    ?.split(';')
+    .map(c => c.trim())
+    .find(c => c.startsWith('__session='))
+    ?.slice('__session='.length)
+    .trim()
+  const hasValidSessionCookie = typeof sessionValue === 'string' && sessionValue.length > 0
+
+  if (!hasValidBearer && !hasValidSessionCookie) {
     throw new TRPCError({ code: 'UNAUTHORIZED' })
   }
 

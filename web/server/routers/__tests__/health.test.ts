@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
 import { appRouter } from '../_app'
 import { createTRPCContext } from '../../trpc'
 
-// mock fetch
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
+afterAll(() => vi.unstubAllGlobals())
 
 function makeContext(reqHeaders: Record<string, string> = {}) {
   const req = new Request('http://localhost/api/trpc', { headers: reqHeaders }) as import('next/server').NextRequest
@@ -24,7 +24,10 @@ describe('health router', () => {
     const caller = appRouter.createCaller(ctx)
     const result = await caller.health.query()
     expect(result).toEqual({ status: 'ok', database: 'ok' })
-    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('/health'))
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/health'),
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
   })
 
   it('throws when backend is down', async () => {

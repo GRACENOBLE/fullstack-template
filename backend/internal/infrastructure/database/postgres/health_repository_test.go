@@ -23,7 +23,7 @@ func mustStartPostgresContainer() (func(context.Context, ...testcontainers.Termi
 
 	container, err := tcpostgres.Run(
 		context.Background(),
-		"postgres:latest",
+		"postgres:16",
 		tcpostgres.WithDatabase(dbName),
 		tcpostgres.WithUsername(dbUser),
 		tcpostgres.WithPassword(dbPwd),

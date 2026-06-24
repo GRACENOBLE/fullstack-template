@@ -9,13 +9,18 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.company.template.auth.AuthViewModel
+import com.company.template.auth.FirebaseAuthRepository
+import com.company.template.navigation.AppNavGraph
+import com.company.template.navigation.AppViewModel
+import com.company.template.onboarding.DataStoreOnboardingRepository
 import com.company.template.ui.theme.TemplateTheme
 import com.google.firebase.messaging.FirebaseMessaging
 import io.sentry.android.core.SentryAndroid
@@ -33,6 +38,16 @@ class MainActivity : ComponentActivity() {
     @SuppressLint("InvalidFragmentVersionForActivityResult")
     private val requestNotificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* no-op */ }
+
+    private val authRepository by lazy { FirebaseAuthRepository() }
+    private val onboardingRepository by lazy { DataStoreOnboardingRepository(applicationContext) }
+
+    private val authViewModel: AuthViewModel by viewModels {
+        AuthViewModel.factory(authRepository)
+    }
+    private val appViewModel: AppViewModel by viewModels {
+        AppViewModel.factory(authRepository, onboardingRepository)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,8 +67,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             TemplateTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
+                    AppNavGraph(
+                        appViewModel = appViewModel,
+                        authViewModel = authViewModel,
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
@@ -62,18 +78,18 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
 @Preview(showBackground = true)
 @Composable
-fun GreetingPreview() {
+fun AppPreview() {
     TemplateTheme {
         Greeting("Android")
     }
+}
+
+@Composable
+fun Greeting(name: String, modifier: Modifier = Modifier) {
+    androidx.compose.material3.Text(
+        text = "Hello $name!",
+        modifier = modifier
+    )
 }

@@ -39,7 +39,7 @@ class MainActivity : ComponentActivity() {
     private val requestNotificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* no-op */ }
 
-    private val authRepository by lazy { FirebaseAuthRepository() }
+    private val authRepository by lazy { FirebaseAuthRepository(applicationContext) }
     private val onboardingRepository by lazy { DataStoreOnboardingRepository(applicationContext) }
 
     private val authViewModel: AuthViewModel by viewModels {

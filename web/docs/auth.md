@@ -3,6 +3,8 @@ topic: auth
 last_verified: 2026-06-24
 sources:
   - auth.ts
+  - lib/firebase.ts
+  - lib/firebase-admin.ts
   - app/api/auth/[...nextauth]/route.ts
   - proxy.ts
   - server/trpc.ts
@@ -23,14 +25,23 @@ sources:
 
 # Authentication
 
-NextAuth v5 (`next-auth@beta`) with Google OAuth and Credentials providers.
+Firebase-first auth with NextAuth v5 (Auth.js) for session management.
+
+**Flow overview:**
+1. Client signs in with Firebase Auth (Google popup or email/password).
+2. Client retrieves a Firebase ID token (`user.getIdToken()`).
+3. Client calls NextAuth's Credentials provider with `{ idToken }`.
+4. `auth.ts` verifies the token with Firebase Admin SDK (`verifyIdToken`), extracts claims, and returns a NextAuth user.
+5. NextAuth issues a JWT session cookie.
 
 ## Packages
 
 ```json
 "next-auth": "beta",
+"firebase": "^12.x",
+"firebase-admin": "^14.x",
 "react-hook-form": "^7.x",
-"@hookform/resolvers": "^3.x"
+"@hookform/resolvers": "^5.x"
 ```
 
 ## Config (`auth.ts`)
@@ -42,15 +53,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({ ... })
 ```
 
 - **`handlers`** — `{ GET, POST }` for the route handler.
-- **`auth()`** — async function; call in Server Components, Server Actions, and middleware to read the session.
+- **`auth()`** — async function; call in Server Components, Server Actions, and proxy to read the session.
 - **`signIn(provider, options)`** — trigger sign-in from server context.
 - **`signOut(options)`** — trigger sign-out from server context.
 
-### Providers
+### Provider
 
-**Google** — reads `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` from env.
+Single **Credentials** provider that accepts `{ idToken: string }`.
 
-**Credentials** — validates email + password with Zod, then proxies a `POST` to `${NEXT_PUBLIC_API_URL}/auth/login`. Returns `{ id, email, name }` on success or `null` on failure.
+`authorize()`:
+1. Validates `idToken` is a non-empty string with Zod.
+2. Calls `verifyFirebaseToken(idToken)` (Firebase Admin SDK) — verifies signature, expiry, audience, and issuer.
+3. Returns `{ id, email, name, image }` from the decoded claims, or `null` on any failure.
 
 ### Session strategy
 
@@ -63,6 +77,24 @@ session: { strategy: 'jwt' }
 ```ts
 pages: { signIn: '/login' }
 ```
+
+## Firebase Admin SDK (`lib/firebase-admin.ts`)
+
+Initialises the Admin app once (singleton) and exports `verifyFirebaseToken`:
+
+```ts
+export async function verifyFirebaseToken(idToken: string) {
+  return getAuth(getAdminApp()).verifyIdToken(idToken)
+}
+```
+
+Initialization precedence:
+1. `FIREBASE_SERVICE_ACCOUNT_JSON` (full service account JSON string) — works everywhere.
+2. `FIREBASE_PROJECT_ID` alone — works on GCP with Application Default Credentials.
+
+## Firebase Client SDK (`lib/firebase.ts`)
+
+Exports `getFirebaseAuth()` for use in client components. Initialises the Firebase app once using `NEXT_PUBLIC_FIREBASE_*` env vars.
 
 ## Route handler (`app/api/auth/[...nextauth]/route.ts`)
 
@@ -83,17 +115,17 @@ import { auth } from "@/auth"
 export default auth((req: NextAuthRequest) => {
   if (!req.auth) {
     const loginUrl = new URL("/login", req.url)
-    loginUrl.searchParams.set("callbackUrl", req.nextUrl.pathname)
+    loginUrl.searchParams.set("callbackUrl", req.nextUrl.pathname + req.nextUrl.search)
     return NextResponse.redirect(loginUrl)
   }
 })
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: ["/dashboard/:path*", "/settings/:path*"],
 }
 ```
 
-Unauthenticated requests to `/dashboard/*` are redirected to `/login?callbackUrl=<original-path>`.
+Unauthenticated requests to `/dashboard/*` or `/settings/*` are redirected to `/login?callbackUrl=<original-path-and-query>`.
 
 ### Additional guard in Server Components
 
@@ -138,6 +170,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
       <TRPCProvider>{children}</TRPCProvider>
+      <Toaster richColors position="top-right" />
     </SessionProvider>
   )
 }
@@ -165,25 +198,42 @@ export interface AuthSession {
 
 Zod v4 schemas:
 
-- **`loginSchema`** — `{ email: string, password: string }` (password min 1).
-- **`registerSchema`** — `{ name: string (min 2), email: string, password: string (min 8), confirmPassword: string }` with `.refine` for password match.
+- **`loginSchema`** — `{ email: z.email(), password: string (min 1) }`.
+- **`registerSchema`** — `{ name: string (min 2), email: z.email(), password: string (min 8), confirmPassword: string }` with `.refine` for password match.
 - Exports inferred types `LoginFormValues` and `RegisterFormValues`.
+
+Used with `standardSchemaResolver` from `@hookform/resolvers/standard-schema` (required for Zod v4).
 
 ## Auth components (`features/auth/components/`)
 
-All are `'use client'` components.
+All are `'use client'` components. Errors are surfaced via Sonner toasts, not inline error state.
 
 ### `LoginForm`
 
-`react-hook-form` with `standardSchemaResolver(loginSchema)` from `@hookform/resolvers/standard-schema`. Calls `signIn('credentials', { redirect: false })` from `next-auth/react` on submit, then pushes to `/dashboard` on success. Displays an inline error string on failure.
+`react-hook-form` with `standardSchemaResolver(loginSchema)`. On submit:
+1. `signInWithEmailAndPassword(getFirebaseAuth(), email, password)` via Firebase.
+2. Retrieves ID token from the credential.
+3. `signIn('credentials', { idToken, redirect: false })` via NextAuth.
+4. Pushes to `/dashboard` on success; shows `toast.error` on failure.
 
 ### `RegisterForm`
 
-Same form setup with `registerSchema`. On submit: POSTs to `${NEXT_PUBLIC_API_URL}/auth/register`, then calls `signIn('credentials', { redirect: false })` to sign in immediately after registration. Pushes to `/dashboard` on success.
+Same form setup with `registerSchema`. On submit:
+1. `createUserWithEmailAndPassword(getFirebaseAuth(), email, password)`.
+2. `updateProfile(user, { displayName: name })`.
+3. Retrieves ID token.
+4. `signIn('credentials', { idToken, redirect: false })`.
+5. Pushes to `/dashboard` on success.
+Handles `auth/email-already-in-use` with a specific toast message.
 
 ### `GoogleSignInButton`
 
-Calls `signIn('google', { callbackUrl: '/dashboard' })` on click. Renders a `Button` with the Google SVG logo inline.
+On click:
+1. `signInWithPopup(getFirebaseAuth(), new GoogleAuthProvider())`.
+2. Retrieves ID token.
+3. `signIn('credentials', { idToken, redirect: false })`.
+4. Pushes to `/dashboard` on success.
+Popup-dismissed errors (`auth/popup-closed-by-user`, `auth/cancelled-popup-request`) are silently ignored. Button is disabled while in-flight.
 
 ### `UserMenu`
 
@@ -201,10 +251,14 @@ Wraps `useSession` from `next-auth/react`. Returns `UseSessionReturn`:
 
 ### `useSignOut`
 
-Wraps `signOut` from `next-auth/react` with `{ redirect: false }`, then calls `router.push('/login')`.
+Signs out of both NextAuth and Firebase in parallel, then navigates to `/login`:
 
 ```ts
-const { signOut } = useSignOut()
+await Promise.all([
+  nextAuthSignOut({ redirect: false }),
+  firebaseSignOut(getFirebaseAuth()),
+])
+router.push('/login')
 ```
 
 ## Pages
@@ -214,6 +268,7 @@ const { signOut } = useSignOut()
 | `/login` | `app/(auth)/login/page.tsx` | Server Component |
 | `/register` | `app/(auth)/register/page.tsx` | Server Component |
 | `/dashboard` | `app/(dashboard)/dashboard/page.tsx` | Server Component |
+| `/settings` | `app/(dashboard)/settings/page.tsx` | Server Component |
 
 Login and Register pages are layout-less Server Components that render a centered `Card` containing `GoogleSignInButton`, a divider, the form, and a link to the other page.
 
@@ -222,9 +277,14 @@ Login and Register pages are layout-less Server Components that render a centere
 | Variable | Description |
 |---|---|
 | `AUTH_SECRET` | Secret used to sign JWTs. Generate with `openssl rand -base64 32`. |
-| `AUTH_GOOGLE_ID` | Google OAuth client ID. |
-| `AUTH_GOOGLE_SECRET` | Google OAuth client secret. |
-| `NEXT_PUBLIC_API_URL` | Go backend base URL (e.g. `http://localhost:8080`). Used by Credentials provider and RegisterForm. |
+| `FIREBASE_PROJECT_ID` | Firebase project ID (server-side). Used when `FIREBASE_SERVICE_ACCOUNT_JSON` is absent and ADC is available (GCP). |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | Full service account JSON as a single-line string. Required outside GCP for `verifyIdToken`. |
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | Firebase web API key. |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Firebase auth domain. |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Firebase project ID (client-side). |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Firebase storage bucket. |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Firebase messaging sender ID. |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | Firebase app ID. |
 
 ## Testing
 

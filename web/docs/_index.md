@@ -15,4 +15,4 @@ The `docs` agent reads this index first to locate the right file.
 | WebSocket hook (useWebSocket, reconnect, auth) | [websocket.md](websocket.md) | `lib/useWebSocket.ts`, `lib/useWebSocket.test.ts` |
 | Firebase Cloud Messaging — permission, token, service worker, useFCM hook | [fcm.md](fcm.md) | `lib/fcm.ts`, `lib/useFCM.ts`, `public/firebase-messaging-sw.js`, `lib/fcm.test.ts` |
 | Object storage (Cloudflare R2) — presign utility, uploadToR2, useUpload hook | [storage.md](storage.md) | `lib/storage.ts`, `lib/useUpload.ts` |
-| Authentication (NextAuth v5) — providers, session, middleware, forms, hooks | [auth.md](auth.md) | `auth.ts`, `middleware.ts`, `features/auth/` |
+| Authentication (NextAuth v5) — providers, session, proxy, forms, hooks | [auth.md](auth.md) | `auth.ts`, `proxy.ts`, `features/auth/` |

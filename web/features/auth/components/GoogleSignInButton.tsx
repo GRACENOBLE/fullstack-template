@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
@@ -7,23 +8,38 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { getFirebaseAuth } from '@/lib/firebase'
 
+const POPUP_DISMISSED = new Set(['auth/popup-closed-by-user', 'auth/cancelled-popup-request'])
+
 export function GoogleSignInButton() {
   const router = useRouter()
+  const [isPending, setIsPending] = useState(false)
 
   async function handleClick() {
+    setIsPending(true)
     try {
       const result = await signInWithPopup(getFirebaseAuth(), new GoogleAuthProvider())
       const idToken = await result.user.getIdToken()
       const res = await signIn('credentials', { idToken, redirect: false })
       if (res?.ok) router.push('/dashboard')
       else toast.error('Sign-in failed. Please try again.')
-    } catch {
-      toast.error('Sign-in failed. Please try again.')
+    } catch (err) {
+      const code = (err as { code?: string }).code
+      if (!code || !POPUP_DISMISSED.has(code)) {
+        toast.error('Sign-in failed. Please try again.')
+      }
+    } finally {
+      setIsPending(false)
     }
   }
 
   return (
-    <Button type="button" variant="outline" className="w-full" onClick={handleClick}>
+    <Button
+      type="button"
+      variant="outline"
+      className="w-full"
+      onClick={handleClick}
+      disabled={isPending}
+    >
       <svg
         className="mr-2 h-4 w-4"
         aria-hidden="true"
@@ -47,7 +63,7 @@ export function GoogleSignInButton() {
           fill="#EA4335"
         />
       </svg>
-      Continue with Google
+      {isPending ? 'Signing in…' : 'Continue with Google'}
     </Button>
   )
 }

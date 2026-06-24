@@ -19,19 +19,19 @@ const mockUseSession = vi.mocked(useSession)
 
 describe('NavAuth', () => {
   it('shows a loading skeleton while session is loading', () => {
-    mockUseSession.mockReturnValue({ isLoading: true, isAuthenticated: false, session: null })
+    mockUseSession.mockReturnValue({ isLoading: true, isAuthenticated: false, user: null })
     const { container } = render(<NavAuth />)
     expect(container.querySelector('.animate-pulse')).toBeInTheDocument()
   })
 
   it('renders UserMenu when authenticated', () => {
-    mockUseSession.mockReturnValue({ isLoading: false, isAuthenticated: true, session: { user: { email: 'a@b.com' }, expires: '2099' } })
+    mockUseSession.mockReturnValue({ isLoading: false, isAuthenticated: true, user: { email: 'a@b.com' } })
     render(<NavAuth />)
     expect(screen.getByTestId('user-menu')).toBeInTheDocument()
   })
 
   it('renders a sign-in link when unauthenticated', () => {
-    mockUseSession.mockReturnValue({ isLoading: false, isAuthenticated: false, session: null })
+    mockUseSession.mockReturnValue({ isLoading: false, isAuthenticated: false, user: null })
     render(<NavAuth />)
     expect(screen.getByRole('link', { name: /sign in/i })).toBeInTheDocument()
   })

@@ -28,6 +28,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "SENTRY_DSN", "\"${localProps.getProperty("SENTRY_DSN", "")}\"")
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${localProps.getProperty("GOOGLE_WEB_CLIENT_ID", "")}\"")
     }
 
     buildTypes {
@@ -37,6 +38,23 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+    }
+
+    // Fail fast: GOOGLE_WEB_CLIENT_ID must be set in local.properties for release builds.
+    // (The resource default_web_client_id from google-services.json is preferred at runtime,
+    //  but BuildConfig is the fallback and must not be empty in production.)
+    tasks.configureEach {
+        if (name.contains("Release", ignoreCase = true) &&
+            (name.startsWith("assemble") || name.startsWith("bundle"))
+        ) {
+            doFirst {
+                val webClientId = localProps.getProperty("GOOGLE_WEB_CLIENT_ID", "")
+                check(webClientId.isNotEmpty()) {
+                    "GOOGLE_WEB_CLIENT_ID must be set in local.properties for release builds. " +
+                        "Add: GOOGLE_WEB_CLIENT_ID=<your-oauth2-web-client-id>"
+                }
+            }
         }
     }
     compileOptions {
@@ -61,10 +79,19 @@ dependencies {
     implementation(libs.sentry.android)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging.ktx)
+    implementation(libs.firebase.auth.ktx)
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services)
+    implementation(libs.googleid)
+    implementation(libs.datastore.preferences)
+    implementation(libs.coil.compose)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.okhttp.mockwebserver)

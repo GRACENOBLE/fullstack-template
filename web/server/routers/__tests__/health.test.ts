@@ -1,4 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
+
+vi.mock('@/auth', () => ({
+  auth: vi.fn().mockResolvedValue(null),
+}))
+
 import { appRouter } from '../_app'
 import { createTRPCContext } from '../../trpc'
 

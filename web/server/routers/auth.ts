@@ -1,12 +1,13 @@
 import { protectedProcedure, router } from '../trpc'
 
 export const authRouter = router({
-  session: protectedProcedure.query(async () => {
-    // Stub — will be replaced when auth is implemented
-    return { authenticated: true }
+  session: protectedProcedure.query(async ({ ctx }) => {
+    return {
+      authenticated: true,
+      user: ctx.session?.user ?? null,
+    }
   }),
   signOut: protectedProcedure.mutation(async () => {
-    // Stub — will be replaced when auth is implemented
     return { success: true }
   }),
 })

@@ -11,6 +11,8 @@ sources:
   - lib/trpc/client.tsx
   - lib/trpc/server.ts
   - app/providers.tsx
+  - auth.ts
+  - app/api/auth/[...nextauth]/route.ts
 ---
 
 # tRPC
@@ -32,22 +34,21 @@ tRPC v11 with React Query v5, wired into Next.js App Router.
 ```ts
 export interface TRPCContext {
   req: NextRequest
-  // session will be added when auth is implemented
+  session: Session | null
 }
 
 export async function createTRPCContext({ req }: { req: NextRequest }): Promise<TRPCContext>
 ```
 
-`createTRPCContext` takes a `NextRequest` and returns the context object passed to every procedure.
+`createTRPCContext` calls `auth()` from NextAuth (`@/auth`) to resolve the current session, then returns `{ req, session }`.
 
 ### Procedure types
 
 **`publicProcedure`** — alias for `t.procedure`. No auth check.
 
 **`protectedProcedure`** — middleware runs before the handler:
-- Reads `Authorization` header: passes if it starts with `Bearer `.
-- Reads `Cookie` header: passes if it contains `__session=`.
-- Throws `TRPCError({ code: 'UNAUTHORIZED' })` if neither is present.
+- Checks `ctx.session?.user`.
+- Throws `TRPCError({ code: 'UNAUTHORIZED' })` if `session` is `null` or `session.user` is absent.
 
 **`createCallerFactory`** — exported from `t.createCallerFactory`; used by `lib/trpc/server.ts` to build server-side callers.
 
@@ -73,11 +74,9 @@ Uses `publicProcedure`. Fetches `GET ${BACKEND_URL}/health` (defaults to `http:/
 
 ### `auth` router (`server/routers/auth.ts`)
 
-Uses `protectedProcedure`. Current stubs:
-- `session` — query, returns `{ authenticated: true }`.
+Uses `protectedProcedure`.
+- `session` — query, returns `{ authenticated: true, user: ctx.session?.user ?? null }`.
 - `signOut` — mutation, returns `{ success: true }`.
-
-Both will be replaced when auth is implemented.
 
 ### `notifications` router (`server/routers/notifications.ts`)
 
@@ -150,14 +149,19 @@ export default async function HealthPage() {
 
 ## Provider wiring (`app/providers.tsx` + `app/layout.tsx`)
 
-`app/providers.tsx` is a thin `'use client'` wrapper:
+`app/providers.tsx` is a thin `'use client'` wrapper. `SessionProvider` (from `next-auth/react`) wraps `TRPCProvider` so both session and React Query contexts are available to all Client Components:
 
 ```tsx
 'use client'
 import { TRPCProvider } from '@/lib/trpc/client'
+import { SessionProvider } from 'next-auth/react'
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  return <TRPCProvider>{children}</TRPCProvider>
+  return (
+    <SessionProvider>
+      <TRPCProvider>{children}</TRPCProvider>
+    </SessionProvider>
+  )
 }
 ```
 
@@ -248,35 +252,52 @@ export const appRouter = router({
 
 Procedures are tested directly via `appRouter.createCaller(ctx)` — no HTTP server needed.
 
-Pattern from `server/routers/__tests__/health.test.ts` and `auth.test.ts`:
+`createTRPCContext` calls `auth()` from NextAuth, so **every test file that calls `createTRPCContext` must mock `@/auth`**:
 
 ```ts
+vi.mock('@/auth', () => ({
+  auth: vi.fn(),
+}))
+
+import { auth } from '@/auth'
+const mockAuth = vi.mocked(auth)
+```
+
+Pattern from `server/routers/__tests__/auth.test.ts`:
+
+```ts
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { appRouter } from '../_app'
 import { createTRPCContext } from '../../trpc'
+import type { Session } from 'next-auth'
 
-function makeContext(reqHeaders: Record<string, string> = {}) {
-  const req = new Request('http://localhost/api/trpc', { headers: reqHeaders }) as NextRequest
+vi.mock('@/auth', () => ({ auth: vi.fn() }))
+
+import { auth } from '@/auth'
+const mockAuth = vi.mocked(auth)
+
+const validSession: Session = {
+  user: { id: '123', email: 'test@example.com', name: 'Test User' },
+  expires: '2099-01-01T00:00:00.000Z',
+}
+
+function makeContext(session: Session | null = null) {
+  const req = new Request('http://localhost/api/trpc') as NextRequest
+  mockAuth.mockResolvedValue(session)
   return createTRPCContext({ req })
 }
 
-it('returns data', async () => {
-  const ctx = await makeContext()
-  const caller = appRouter.createCaller(ctx)
-  const result = await caller.health.query()
-  expect(result).toEqual({ status: 'ok', database: 'ok' })
-})
-
-it('throws UNAUTHORIZED without session', async () => {
-  const ctx = await makeContext()
+it('throws UNAUTHORIZED when no session present', async () => {
+  const ctx = await makeContext(null)
   const caller = appRouter.createCaller(ctx)
   await expect(caller.auth.session()).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
 })
 
-it('allows Bearer token', async () => {
-  const ctx = await makeContext({ authorization: 'Bearer test-token' })
+it('allows access with valid session', async () => {
+  const ctx = await makeContext(validSession)
   const caller = appRouter.createCaller(ctx)
   const result = await caller.auth.session()
-  expect(result).toEqual({ authenticated: true })
+  expect(result).toMatchObject({ authenticated: true, user: { email: 'test@example.com' } })
 })
 ```
 

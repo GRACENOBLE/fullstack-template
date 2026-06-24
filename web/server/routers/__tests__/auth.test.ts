@@ -1,50 +1,55 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { appRouter } from '../_app'
 import { createTRPCContext } from '../../trpc'
+import type { Session } from 'next-auth'
 
-function makeContext(reqHeaders: Record<string, string> = {}) {
-  const req = new Request('http://localhost/api/trpc', { headers: reqHeaders }) as import('next/server').NextRequest
+vi.mock('@/auth', () => ({
+  auth: vi.fn(),
+}))
+
+import { auth } from '@/auth'
+const mockAuth = vi.mocked(auth)
+
+function makeContext(session: Session | null = null) {
+  const req = new Request('http://localhost/api/trpc') as import('next/server').NextRequest
+  mockAuth.mockResolvedValue(session)
   return createTRPCContext({ req })
 }
 
+const validSession: Session = {
+  user: { id: '123', email: 'test@example.com', name: 'Test User' },
+  expires: '2099-01-01T00:00:00.000Z',
+}
+
 describe('protectedProcedure', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
   it('throws UNAUTHORIZED when no session present', async () => {
-    const ctx = await makeContext()
+    const ctx = await makeContext(null)
     const caller = appRouter.createCaller(ctx)
-    await expect(caller.auth.session()).rejects.toMatchObject({
-      code: 'UNAUTHORIZED',
-    })
+    await expect(caller.auth.session()).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
   })
 
-  it('allows access with Bearer token', async () => {
-    const ctx = await makeContext({ authorization: 'Bearer test-token-123' })
+  it('allows access with valid session', async () => {
+    const ctx = await makeContext(validSession)
     const caller = appRouter.createCaller(ctx)
     const result = await caller.auth.session()
-    expect(result).toEqual({ authenticated: true })
+    expect(result).toMatchObject({ authenticated: true, user: { email: 'test@example.com' } })
   })
 
-  it('allows access with __session cookie', async () => {
-    const ctx = await makeContext({ cookie: '__session=abc123' })
+  it('returns user data in session query', async () => {
+    const ctx = await makeContext(validSession)
     const caller = appRouter.createCaller(ctx)
     const result = await caller.auth.session()
-    expect(result).toEqual({ authenticated: true })
+    expect(result.user?.name).toBe('Test User')
   })
 
-  it('throws UNAUTHORIZED for empty Bearer token', async () => {
-    const ctx = await makeContext({ authorization: 'Bearer ' })
+  it('signOut returns success for authenticated user', async () => {
+    const ctx = await makeContext(validSession)
     const caller = appRouter.createCaller(ctx)
-    await expect(caller.auth.session()).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
-  })
-
-  it('throws UNAUTHORIZED for __session cookie with empty value', async () => {
-    const ctx = await makeContext({ cookie: '__session=' })
-    const caller = appRouter.createCaller(ctx)
-    await expect(caller.auth.session()).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
-  })
-
-  it('throws UNAUTHORIZED when __session= appears only in another cookie value', async () => {
-    const ctx = await makeContext({ cookie: 'other=__session=abc' })
-    const caller = appRouter.createCaller(ctx)
-    await expect(caller.auth.session()).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
+    const result = await caller.auth.signOut()
+    expect(result).toEqual({ success: true })
   })
 })

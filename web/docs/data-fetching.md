@@ -9,6 +9,7 @@ sources:
   - server/routers/health.ts
   - lib/trpc/client.tsx
   - lib/trpc/server.ts
+  - lib/trpc/utils.ts
   - app/providers.tsx
 ---
 
@@ -64,7 +65,7 @@ import { createUser } from './actions';
 
 ## When client-side fetching is acceptable
 Only when data depends on runtime browser state (e.g., user interaction, live updates).
-Use `SWR` or `TanStack Query` for client-side data — never bare `useEffect + fetch`.
+Use tRPC with React Query (via `trpc.<router>.<procedure>.useQuery()`) for client-side data — never bare `useEffect + fetch`.
 
 ## Backend URL
 Backend runs at `http://localhost:8080` in development.

@@ -1,8 +1,6 @@
 package com.company.template.auth
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -20,81 +18,62 @@ class LoginScreenTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    @Test
-    fun loginScreen_displaysSignInHeading() {
+    private fun setContent(
+        uiState: AuthUiState = AuthUiState.Idle,
+        onSignIn: (String, String) -> Unit = { _, _ -> },
+        onSignInWithGoogle: () -> Unit = {},
+        onNavigateToRegister: () -> Unit = {},
+        onClearError: () -> Unit = {}
+    ) {
         composeTestRule.setContent {
             TemplateTheme {
                 LoginScreen(
-                    uiState = AuthUiState.Idle,
-                    onSignIn = { _, _ -> },
-                    onNavigateToRegister = {},
-                    onClearError = {}
+                    uiState = uiState,
+                    onSignIn = onSignIn,
+                    onSignInWithGoogle = onSignInWithGoogle,
+                    onNavigateToRegister = onNavigateToRegister,
+                    onClearError = onClearError
                 )
             }
         }
+    }
+
+    @Test
+    fun loginScreen_displaysSignInHeading() {
+        setContent()
         composeTestRule.onNodeWithText("Sign In").assertIsDisplayed()
     }
 
     @Test
-    fun loginScreen_signInButtonDisabledWhenFieldsEmpty() {
-        composeTestRule.setContent {
-            TemplateTheme {
-                LoginScreen(
-                    uiState = AuthUiState.Idle,
-                    onSignIn = { _, _ -> },
-                    onNavigateToRegister = {},
-                    onClearError = {}
-                )
-            }
-        }
-        // Button with text "Sign In" that is a Button (not the heading Text)
-        composeTestRule.onNodeWithText("Sign In", useUnmergedTree = false)
-            .assertIsDisplayed()
+    fun loginScreen_displaysGoogleSignInButton() {
+        setContent()
+        composeTestRule.onNodeWithText("Continue with Google").assertIsDisplayed()
+    }
+
+    @Test
+    fun loginScreen_googleButton_invokesCallback() {
+        var called = false
+        setContent(onSignInWithGoogle = { called = true })
+        composeTestRule.onNodeWithText("Continue with Google").performClick()
+        assertTrue(called)
     }
 
     @Test
     fun loginScreen_displaysErrorMessage() {
-        composeTestRule.setContent {
-            TemplateTheme {
-                LoginScreen(
-                    uiState = AuthUiState.Error("Invalid credentials"),
-                    onSignIn = { _, _ -> },
-                    onNavigateToRegister = {},
-                    onClearError = {}
-                )
-            }
-        }
+        setContent(uiState = AuthUiState.Error("Invalid credentials"))
         composeTestRule.onNodeWithText("Invalid credentials").assertIsDisplayed()
     }
 
     @Test
     fun loginScreen_displaysRegisterLink() {
-        composeTestRule.setContent {
-            TemplateTheme {
-                LoginScreen(
-                    uiState = AuthUiState.Idle,
-                    onSignIn = { _, _ -> },
-                    onNavigateToRegister = {},
-                    onClearError = {}
-                )
-            }
-        }
+        setContent()
         composeTestRule.onNodeWithText("Register").assertIsDisplayed()
     }
 
     @Test
     fun loginScreen_clickRegister_invokesCallback() {
         var navigateCalled = false
-        composeTestRule.setContent {
-            TemplateTheme {
-                LoginScreen(
-                    uiState = AuthUiState.Idle,
-                    onSignIn = { _, _ -> },
-                    onNavigateToRegister = { navigateCalled = true },
-                    onClearError = {}
-                )
-            }
-        }
+        setContent(onNavigateToRegister = { navigateCalled = true })
         composeTestRule.onNodeWithText("Register").performClick()
         assertTrue(navigateCalled)
     }
@@ -103,19 +82,7 @@ class LoginScreenTest {
     fun loginScreen_typingEmailAndPassword_thenSignInInvoked() {
         var signInEmail = ""
         var signInPassword = ""
-        composeTestRule.setContent {
-            TemplateTheme {
-                LoginScreen(
-                    uiState = AuthUiState.Idle,
-                    onSignIn = { e, p ->
-                        signInEmail = e
-                        signInPassword = p
-                    },
-                    onNavigateToRegister = {},
-                    onClearError = {}
-                )
-            }
-        }
+        setContent(onSignIn = { e, p -> signInEmail = e; signInPassword = p })
         composeTestRule.onNodeWithText("Email").performTextInput("test@example.com")
         composeTestRule.onNodeWithText("Password").performTextInput("secret123")
         composeTestRule.onNodeWithText("Sign In").performClick()

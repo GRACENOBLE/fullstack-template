@@ -1,9 +1,11 @@
 package com.company.template.navigation
 
+import android.app.Activity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -32,6 +34,7 @@ fun AppNavGraph(
     val startDestination by appViewModel.startDestination.collectAsStateWithLifecycle()
     val authUiState by authViewModel.uiState.collectAsStateWithLifecycle()
     val currentUser: FirebaseUser? by authViewModel.currentUser.collectAsStateWithLifecycle()
+    val activity = LocalContext.current as Activity
 
     // Navigate away from auth screens when the user successfully signs in
     LaunchedEffect(authUiState) {
@@ -67,9 +70,8 @@ fun AppNavGraph(
             LoginScreen(
                 uiState = authUiState,
                 onSignIn = { email, password -> authViewModel.signIn(email, password) },
-                onNavigateToRegister = {
-                    navController.navigate(ROUTE_REGISTER)
-                },
+                onSignInWithGoogle = { authViewModel.signInWithGoogle(activity) },
+                onNavigateToRegister = { navController.navigate(ROUTE_REGISTER) },
                 onClearError = authViewModel::clearError
             )
         }

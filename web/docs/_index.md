@@ -6,7 +6,8 @@ The `docs` agent reads this index first to locate the right file.
 | Topic | File | Source files covered |
 |---|---|---|
 | App Router structure & route conventions | [routing.md](routing.md) | `app/layout.tsx`, `app/page.tsx`, `next.config.ts` |
-| Data fetching patterns | [data-fetching.md](data-fetching.md) | `app/page.tsx`, `app/layout.tsx` |
+| Data fetching patterns | [data-fetching.md](data-fetching.md) | `app/page.tsx`, `app/layout.tsx`, `lib/trpc/server.ts`, `lib/trpc/client.tsx` |
+| tRPC v11 + React Query v5 — routers, context, client/server usage | [trpc.md](trpc.md) | `server/trpc.ts`, `server/routers/_app.ts`, `lib/trpc/client.tsx`, `lib/trpc/server.ts`, `app/providers.tsx` |
 | Styling with Tailwind CSS v4 | [styling.md](styling.md) | `app/globals.css`, `postcss.config.mjs` |
 | Component conventions | [components.md](components.md) | `app/` (all component files) |
 | Testing patterns | [testing.md](testing.md) | `vitest.config.ts`, `vitest.setup.ts`, `__tests__/page.test.tsx` |

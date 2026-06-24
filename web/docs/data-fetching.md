@@ -1,9 +1,15 @@
 ---
 topic: data-fetching
-last_verified: 2026-06-14
+last_verified: 2026-06-24
 sources:
   - app/page.tsx
   - app/layout.tsx
+  - server/trpc.ts
+  - server/routers/_app.ts
+  - server/routers/health.ts
+  - lib/trpc/client.tsx
+  - lib/trpc/server.ts
+  - app/providers.tsx
 ---
 
 # Data Fetching
@@ -71,3 +77,37 @@ Store in an env var for production: `process.env.NEXT_PUBLIC_API_URL` (client-ac
 
 ## Caching (Next.js 16)
 Next.js 16 changes default caching behavior from v14. Check `web/node_modules/next/dist/docs/` for the current defaults before assuming cached or uncached behavior.
+
+## tRPC (preferred for typed API calls)
+
+For calls to the Go backend that benefit from end-to-end type safety, use tRPC instead of bare `fetch`.
+
+**When to use tRPC vs. plain `fetch`:**
+- Use tRPC when calling procedures already defined in `server/routers/` — you get compile-time type inference and no manual `res.json()` casting.
+- Use plain `fetch` for one-off external APIs, webhooks, or cases where a tRPC router would be disproportionate overhead.
+
+**Server Components** — use `createServerCaller` from `lib/trpc/server.ts`:
+```tsx
+import { createServerCaller } from '@/lib/trpc/server'
+
+export default async function HealthPage() {
+  const caller = await createServerCaller()
+  const health = await caller.health.query()
+  return <p>Status: {health.status}</p>
+}
+```
+
+**Client Components** — use `trpc.<router>.<procedure>.useQuery()` or `useMutation()` from `lib/trpc/client.tsx`:
+```tsx
+'use client'
+import { trpc } from '@/lib/trpc/client'
+
+export function HealthStatus() {
+  const { data, isLoading, isError } = trpc.health.query.useQuery()
+  if (isLoading) return <p>Loading…</p>
+  if (isError) return <p>Error</p>
+  return <p>Status: {data?.status}</p>
+}
+```
+
+See [`docs/trpc.md`](trpc.md) for full setup details, context, protected procedures, and how to add new routers.

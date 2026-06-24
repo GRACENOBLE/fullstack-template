@@ -56,6 +56,7 @@ Read the relevant doc before implementing. These are kept in sync with the code 
 |---|---|
 | App Router, route files, layouts, navigation | [`docs/routing.md`](docs/routing.md) |
 | Server Components, data fetching, Server Actions | [`docs/data-fetching.md`](docs/data-fetching.md) |
+| tRPC routers, React Query, client/server usage | [`docs/trpc.md`](docs/trpc.md) |
 | Tailwind CSS v4, theme tokens, dark mode | [`docs/styling.md`](docs/styling.md) |
 | Component conventions, TypeScript rules | [`docs/components.md`](docs/components.md) |
 | Testing setup, patterns, what to test | [`docs/testing.md`](docs/testing.md) |

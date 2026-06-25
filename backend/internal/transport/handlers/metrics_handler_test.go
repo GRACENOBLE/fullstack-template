@@ -9,7 +9,7 @@ import (
 
 func TestMetricsEndpoint_Returns200(t *testing.T) {
 	h := &Handler{}
-	handler := h.RegisterRoutes(0, 0, "")
+	handler := h.RegisterRoutes(0, 0, "", []string{"http://localhost:3000"})
 
 	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
 	w := httptest.NewRecorder()

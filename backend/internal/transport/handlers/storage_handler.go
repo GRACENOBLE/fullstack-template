@@ -37,11 +37,11 @@ func (h *Handler) PresignHandler(c *gin.Context) {
 
 	uploadURL, err := h.storageService.PresignUpload(c.Request.Context(), req.Filename, req.ContentType, 15*time.Minute)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate upload URL"})
+		JSONError(c, http.StatusInternalServerError, "internal_error", "failed to generate upload URL")
 		return
 	}
 
-	c.JSON(http.StatusOK, presignResponse{
+	JSON(c, presignResponse{
 		UploadURL: uploadURL,
 		PublicURL: h.storageService.PublicURL(req.Filename),
 	})
@@ -59,7 +59,7 @@ func (h *Handler) DeleteObjectHandler(c *gin.Context) {
 	key := c.Param("key")
 
 	if err := h.storageService.Delete(c.Request.Context(), key); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete object"})
+		JSONError(c, http.StatusInternalServerError, "internal_error", "failed to delete object")
 		return
 	}
 

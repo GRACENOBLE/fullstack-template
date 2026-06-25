@@ -1,6 +1,6 @@
 ---
 topic: middleware
-last_verified: 2026-06-23
+last_verified: 2026-06-25
 sources:
   - internal/transport/middleware/logger.go
   - internal/transport/middleware/ratelimit.go
@@ -8,6 +8,7 @@ sources:
   - internal/transport/middleware/metrics.go
   - internal/transport/middleware/local_network.go
   - internal/transport/middleware/geo.go
+  - internal/transport/middleware/request_id.go
   - internal/transport/handlers/routes.go
 ---
 
@@ -18,15 +19,17 @@ All middleware lives in `internal/transport/middleware/` and follows the Gin `Ha
 ## Registration order
 
 ```go
-// 1. Sentry error reporting
+// 1. Request ID — must be first so every subsequent middleware can read the ID
+r.Use(middleware.RequestID())
+// 2. Sentry error reporting
 r.Use(middleware.SentryMiddleware(sentryDSN))
-// 2. Recovery + logger (debug: gin.Logger, release: middleware.Logger)
+// 3. Recovery + logger (debug: gin.Logger, release: middleware.Logger)
 r.Use(gin.Recovery(), middleware.Logger())
-// 3. Prometheus metrics collection
+// 4. Prometheus metrics collection
 r.Use(middleware.PrometheusMiddleware())
-// 4. Rate limiter (no-op when RPS <= 0)
+// 5. Rate limiter (no-op when RPS <= 0)
 r.Use(middleware.RateLimit(rps, burst))
-// 5. CORS
+// 6. CORS
 r.Use(cors.New(...))
 
 // Global routes (no auth):
@@ -42,9 +45,33 @@ if h.verifier != nil {
 api.GET("/me", h.MeHandler)
 ```
 
+## RequestID
+
+`RequestID() gin.HandlerFunc` assigns a unique identifier to every request. It is registered as the first middleware in `RegisterRoutes` so all subsequent middleware (including logger and Sentry) have access to the ID.
+
+```go
+const RequestIDKey    = "request_id"
+const RequestIDHeader = "X-Request-ID"
+
+func RequestID() gin.HandlerFunc
+```
+
+Behaviour:
+- Reads the `X-Request-ID` request header. If present and non-empty, uses that value (allows callers to propagate their own trace IDs).
+- If absent or empty, generates a random 16-byte hex string (`crypto/rand`).
+- Stores the ID in the Gin context under `RequestIDKey` via `c.Set`.
+- Echoes the ID back in the `X-Request-ID` response header.
+
+Reading the ID inside a handler or middleware:
+```go
+requestID := c.GetString(middleware.RequestIDKey)
+```
+
+The structured `Logger()` middleware appends `"request_id"` to every slog record automatically.
+
 ## Logger
 
-`Logger() gin.HandlerFunc` emits one structured `slog` record per request after `c.Next()` returns. Fields: `status`, `method`, `path`, `latency`, `ip`, and optionally `query` and `errors`.
+`Logger() gin.HandlerFunc` emits one structured `slog` record per request after `c.Next()` returns. Fields: `status`, `method`, `path`, `latency`, `ip`, `request_id`, and optionally `query` and `errors`.
 
 In debug mode (`ENV` not set to `staging`/`production`) Gin's built-in colorful logger is used instead.
 

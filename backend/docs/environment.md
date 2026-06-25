@@ -1,8 +1,9 @@
 ---
 topic: environment
-last_verified: 2026-06-23
+last_verified: 2026-06-25
 sources:
   - .env
+  - .env.example
   - internal/bootstrap/bootstrap.go
   - internal/infrastructure/database/postgres/db.go
   - pkg/firebase/admin.go
@@ -47,6 +48,7 @@ This runs on package init before any env var is read — no explicit `godotenv.L
 | `R2_BUCKET` | `bootstrap.go` | — | R2 bucket name. Required when `R2_ACCOUNT_ID` is set; startup fails if omitted. |
 | `R2_PUBLIC_URL` | `bootstrap.go` | — | Public base URL for the R2 bucket (custom domain or `r2.dev` subdomain). Required when `R2_ACCOUNT_ID` is set; startup fails if omitted. |
 | `IPAPI_KEY` | `bootstrap.go` | — | ipapi.co API key (optional). Free tier works without a key; supplying one enables higher rate limits. |
+| `CORS_ALLOWED_ORIGINS` | `bootstrap.go` | `http://localhost:3000` | Comma-separated list of origins allowed by the CORS middleware. Parsed at startup — each entry is whitespace-trimmed. E.g. `https://app.example.com,https://staging.example.com`. |
 
 Variables marked **required** are validated by `bootstrap.validateConfig` at startup — the process exits before attempting a DB connection if any are missing.
 

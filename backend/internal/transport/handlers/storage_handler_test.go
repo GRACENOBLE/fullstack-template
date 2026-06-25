@@ -75,14 +75,16 @@ func TestPresignHandler_HappyPath(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var resp presignResponse
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+	var envelope struct {
+		Data presignResponse `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &envelope); err != nil {
 		t.Fatalf("unmarshal response: %v", err)
 	}
-	if resp.UploadURL == "" {
+	if envelope.Data.UploadURL == "" {
 		t.Error("expected non-empty upload_url")
 	}
-	if resp.PublicURL == "" {
+	if envelope.Data.PublicURL == "" {
 		t.Error("expected non-empty public_url")
 	}
 }

@@ -21,8 +21,8 @@ func (h *Handler) MeHandler(c *gin.Context) {
 	val, _ := c.Get(middleware.FirebaseClaimsKey)
 	token, ok := val.(*usecase.FirebaseToken)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		JSONError(c, http.StatusUnauthorized, "unauthorized", "missing or invalid token")
 		return
 	}
-	c.JSON(http.StatusOK, token)
+	JSON(c, token)
 }

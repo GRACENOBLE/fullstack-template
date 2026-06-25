@@ -16,10 +16,12 @@ import (
 // RegisterRoutes creates the Gin engine, applies middleware, and registers all routes.
 // rps and burst configure IP-based rate limiting; pass rps<=0 to disable.
 // sentryDSN enables Sentry error tracking; pass empty string to disable.
+// allowedOrigins is the list of CORS allowed origins; defaults to localhost:3000 when empty.
 // Firebase auth is read from h.verifier; nil disables auth (dev only).
-func (h *Handler) RegisterRoutes(rps float64, burst int, sentryDSN string) http.Handler {
+func (h *Handler) RegisterRoutes(rps float64, burst int, sentryDSN string, allowedOrigins []string) http.Handler {
 	r := gin.New()
 
+	r.Use(middleware.RequestID())
 	r.Use(middleware.SentryMiddleware(sentryDSN))
 
 	// Use Gin's colorful logger locally; structured slog logger in staging/production.
@@ -33,7 +35,7 @@ func (h *Handler) RegisterRoutes(rps float64, burst int, sentryDSN string) http.
 	r.Use(middleware.RateLimit(rps, burst))
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowOrigins:     allowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowHeaders:     []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,

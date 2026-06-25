@@ -25,14 +25,29 @@ func TestPprofIndex_PublicIPForbidden(t *testing.T) {
 	handler := h.RegisterRoutes(0, 0, "", []string{"http://localhost:3000"})
 
 	req := httptest.NewRequest(http.MethodGet, "/debug/pprof/", nil)
-	// Gin's ClientIP() respects X-Forwarded-For when RemoteAddr is trusted loopback.
-	// Set RemoteAddr to a public IP so LocalNetworkOnly() blocks it directly.
 	req.RemoteAddr = "8.8.8.8:12345"
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusForbidden {
 		t.Errorf("expected 403 from public IP, got %d", w.Code)
+	}
+}
+
+func TestPprofIndex_XForwardedForSpoofingBlocked(t *testing.T) {
+	h := &Handler{}
+	handler := h.RegisterRoutes(0, 0, "", []string{"http://localhost:3000"})
+
+	// Attacker connects from a public IP but spoofs X-Forwarded-For: 127.0.0.1.
+	// LocalNetworkOnly uses RemoteAddr, not ClientIP(), so spoofing must not bypass the check.
+	req := httptest.NewRequest(http.MethodGet, "/debug/pprof/", nil)
+	req.RemoteAddr = "8.8.8.8:12345"
+	req.Header.Set("X-Forwarded-For", "127.0.0.1")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403 when X-Forwarded-For is spoofed, got %d (spoofing bypass!)", w.Code)
 	}
 }
 

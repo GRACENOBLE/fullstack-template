@@ -21,11 +21,13 @@ export default async function DashboardPage() {
   }
 
   let profile: UserProfile = fallbackProfile
-  try {
-    profile = await fetchUserProfile(fallbackProfile.uid)
-  } catch {
-    // Backend unreachable or returned a non-2xx status — show session data instead.
-    profile = fallbackProfile
+  if (fallbackProfile.uid) {
+    try {
+      profile = await fetchUserProfile(fallbackProfile.uid)
+    } catch {
+      // Backend unreachable or returned a non-2xx status — show session data instead.
+      profile = fallbackProfile
+    }
   }
 
   return (

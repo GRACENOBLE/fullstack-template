@@ -38,5 +38,8 @@ export async function fetchUserProfile(userId: string): Promise<UserProfile> {
   }
 
   const body: ApiEnvelope = (await res.json()) as ApiEnvelope
+  if (!body.data) {
+    throw new Error('Backend response missing data envelope')
+  }
   return body.data
 }

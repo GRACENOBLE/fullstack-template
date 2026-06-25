@@ -2,6 +2,7 @@ package com.company.template.settings
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -58,6 +59,8 @@ class SettingsScreenTest {
                 )
             }
         }
-        composeTestRule.onNodeWithText("—").assertIsDisplayed()
+        // Both displayName and email fall back to "—", so two nodes match.
+        composeTestRule.onAllNodesWithText("—")[0].assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("—")[1].assertIsDisplayed()
     }
 }

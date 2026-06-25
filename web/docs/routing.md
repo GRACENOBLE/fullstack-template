@@ -52,7 +52,7 @@ app/
 ## Route groups
 Use `(groupName)/` to group routes without affecting the URL. The project currently has two route groups:
 
-```
+```text
 app/
   (auth)/
     login/page.tsx      → /login    (Server Component; LoginForm + GoogleSignInButton)

@@ -7,6 +7,13 @@ sources:
   - app/not-found.tsx
   - app/error.tsx
   - app/global-error.tsx
+  - app/(auth)/login/page.tsx
+  - app/(auth)/register/page.tsx
+  - app/(dashboard)/layout.tsx
+  - app/(dashboard)/dashboard/page.tsx
+  - app/(dashboard)/dashboard/ProfileCard.tsx
+  - app/(dashboard)/settings/page.tsx
+  - lib/user-profile.ts
   - next.config.ts
 ---
 
@@ -27,9 +34,10 @@ App Router only. No Pages Router. Never create files in a `pages/` directory.
 
 ## Root layout (`app/layout.tsx`)
 - Must export `metadata` and a default `RootLayout` component.
-- Sets up fonts (Geist Sans + Geist Mono via `next/font/google`), global CSS, `<html>` and `<body>`.
-- Font CSS variables: `--font-geist-sans`, `--font-geist-mono` — used in `globals.css` via `@theme inline`.
-- `<html>` carries font variable classes; `<body>` has `min-h-full flex flex-col`.
+- Sets up fonts (Manrope + Geist Mono via `next/font/google`), global CSS, `<html>` and `<body>`.
+- Font CSS variables: `--font-sans` (Manrope), `--font-geist-mono` (Geist Mono) — used in `globals.css` via `@theme inline`.
+- `<html>` carries font variable classes and `h-full antialiased`; `<body>` has `min-h-full flex flex-col`.
+- Children are wrapped in a `<Providers>` component.
 
 ## Nested routes
 Add route segments as directories under `app/`:
@@ -42,14 +50,21 @@ app/
 ```
 
 ## Route groups
-Use `(groupName)/` to group routes without affecting the URL:
+Use `(groupName)/` to group routes without affecting the URL. The project currently has two route groups:
+
 ```
 app/
-  (marketing)/
-    about/page.tsx  → /about
-  (app)/
-    dashboard/page.tsx → /dashboard
+  (auth)/
+    login/page.tsx      → /login    (Server Component; LoginForm + GoogleSignInButton)
+    register/page.tsx   → /register (Server Component; RegisterForm + GoogleSignInButton)
+  (dashboard)/
+    layout.tsx          → shared layout: SidebarProvider + AppSidebar + SidebarInset;
+                          reads sidebar_state cookie to set default open state
+    dashboard/page.tsx  → /dashboard (auth-guarded; redirects to /login if no session)
+    settings/page.tsx   → /settings  (auth-guarded; redirects to /login if no session)
 ```
+
+Both `(dashboard)` pages call `auth()` from `@/auth` and redirect to `/login` on a missing session.
 
 ## Dynamic segments
 ```

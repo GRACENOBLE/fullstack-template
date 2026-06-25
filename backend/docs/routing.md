@@ -8,6 +8,7 @@ sources:
   - internal/transport/handlers/health_handler.go
   - internal/transport/handlers/auth_handler.go
   - internal/transport/handlers/me_handler.go
+  - internal/transport/handlers/pprof_handler_test.go
   - internal/transport/handlers/validation.go
   - internal/transport/handlers/response.go
   - internal/transport/middleware/logger.go
@@ -130,6 +131,18 @@ func (h *Handler) RegisterRoutes(rps float64, burst int, sentryDSN string, allow
 
     r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
+    // /debug/pprof — always restricted to loopback / RFC 1918 (never public).
+    debug := r.Group("/debug/pprof", middleware.LocalNetworkOnly())
+    {
+        debug.GET("/", gin.WrapF(pprof.Index))
+        debug.GET("/cmdline", gin.WrapF(pprof.Cmdline))
+        debug.GET("/profile", gin.WrapF(pprof.Profile))
+        debug.GET("/symbol", gin.WrapF(pprof.Symbol))
+        debug.POST("/symbol", gin.WrapF(pprof.Symbol))
+        debug.GET("/trace", gin.WrapF(pprof.Trace))
+        debug.GET("/:profile", gin.WrapF(pprof.Index))
+    }
+
     // Asynqmon job-monitoring UI — debug/local only.
     if gin.Mode() == gin.DebugMode && h.queueUI != nil {
         r.GET("/admin/queues", gin.WrapH(h.queueUI))
@@ -192,6 +205,13 @@ Allowed methods: GET, POST, PUT, DELETE, OPTIONS, PATCH.
 | GET | `/ws` | `?token=` query param | `WsHandler` — upgrades to WebSocket; 401 when token missing/invalid | `ws_handler.go` |
 | GET | `/metrics` | `LocalNetworkOnly()` in release mode | Prometheus scrape endpoint; unrestricted in debug mode | `routes.go` |
 | GET | `/swagger/*any` | none | Swagger UI | `routes.go` |
+| GET | `/debug/pprof/` | `LocalNetworkOnly()` (always) | pprof index — `net/http/pprof.Index` | `routes.go` |
+| GET | `/debug/pprof/cmdline` | `LocalNetworkOnly()` (always) | pprof cmdline | `routes.go` |
+| GET | `/debug/pprof/profile` | `LocalNetworkOnly()` (always) | CPU profile | `routes.go` |
+| GET | `/debug/pprof/symbol` | `LocalNetworkOnly()` (always) | pprof symbol lookup | `routes.go` |
+| POST | `/debug/pprof/symbol` | `LocalNetworkOnly()` (always) | pprof symbol lookup | `routes.go` |
+| GET | `/debug/pprof/trace` | `LocalNetworkOnly()` (always) | execution trace | `routes.go` |
+| GET | `/debug/pprof/:profile` | `LocalNetworkOnly()` (always) | named profile (heap, goroutine, etc.) | `routes.go` |
 | GET | `/admin/queues` | none (debug mode only) | Asynqmon job-monitoring UI | `routes.go` |
 | GET | `/api/v1/me` | FirebaseAuth header | `MeHandler` — returns verified `FirebaseToken` claims | `auth_handler.go` |
 | PATCH | `/api/v1/me` | FirebaseAuth header | `UpdateMeHandler` — upserts user profile; returns `domain.User` | `me_handler.go` |
@@ -204,6 +224,7 @@ Allowed methods: GET, POST, PUT, DELETE, OPTIONS, PATCH.
 FCM routes are only registered when `h.fcmTokenRepo != nil` (i.e., `FIREBASE_PROJECT_ID` is set).
 Storage routes are only registered when `h.storageService != nil` (i.e., `R2_ACCOUNT_ID` is set).
 `PATCH /api/v1/me` and `DELETE /api/v1/me` are registered when `h.userRepo != nil` (always wired).
+`/debug/pprof/*` routes are always registered (in both debug and release modes) but are unconditionally gated by `LocalNetworkOnly()` — they are never reachable from external clients. They are intentionally excluded from Swagger annotations because `gin.WrapF` handlers carry no swaggo metadata.
 
 ## Graceful shutdown
 Wired in `cmd/api/main.go` via `signal.NotifyContext` for SIGINT/SIGTERM.

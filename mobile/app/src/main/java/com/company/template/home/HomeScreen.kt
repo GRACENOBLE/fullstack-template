@@ -1,6 +1,7 @@
 package com.company.template.home
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,6 +12,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -27,50 +29,60 @@ import com.company.template.ui.theme.TemplateTheme
 fun HomeScreen(
     displayName: String,
     onSignOut: () -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     viewModel: HomeViewModel = viewModel(factory = HomeViewModel.factory()),
     modifier: Modifier = Modifier,
 ) {
     val profileState by viewModel.profileState.collectAsStateWithLifecycle()
 
-    Column(
-        modifier =
-            modifier
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 32.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = "Welcome back!",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        if (displayName.isNotBlank()) {
-            Text(
-                text = displayName,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-        UiStateContent(
-            state = profileState,
-            onRetry = viewModel::refresh,
-        ) { profile ->
-            ProfileContent(profile = profile)
-        }
-        Spacer(modifier = Modifier.height(40.dp))
-        Button(
-            onClick = onSignOut,
-            colors =
-                ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                ),
-            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(text = "Sign Out")
+            Text(
+                text = "Welcome back!",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            if (displayName.isNotBlank()) {
+                Text(
+                    text = displayName,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+            UiStateContent(
+                state = profileState,
+                onRetry = viewModel::refresh,
+            ) { profile ->
+                ProfileContent(profile = profile)
+            }
+            Spacer(modifier = Modifier.height(40.dp))
+            Button(
+                onClick = onSignOut,
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    ),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(text = "Sign Out")
+            }
+        }
+        TextButton(
+            onClick = onNavigateToSettings,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(8.dp),
+        ) {
+            Text(text = "Settings")
         }
     }
 }

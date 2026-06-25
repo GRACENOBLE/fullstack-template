@@ -21,15 +21,15 @@ Tracks all identified gaps from the June 2026 template analysis. Issues live in 
 
 | # | Issue | Status |
 |---|-------|--------|
-| [#50](https://github.com/GRACENOBLE/fullstack-template/issues/50) | `infra` Root dev script to start all services with one command | 🔁 In review |
-| [#51](https://github.com/GRACENOBLE/fullstack-template/issues/51) | `backend` Add `.golangci.yml` linter config | 🔁 In review |
-| [#52](https://github.com/GRACENOBLE/fullstack-template/issues/52) | `mobile` Add ktlint and integrate into CI | 🔁 In review |
-| [#53](https://github.com/GRACENOBLE/fullstack-template/issues/53) | `infra` Renovate / Dependabot for automated dependency updates | 🔁 In review |
-| [#54](https://github.com/GRACENOBLE/fullstack-template/issues/54) | `infra` First-run setup script for new contributors | 🔁 In review |
-| [#55](https://github.com/GRACENOBLE/fullstack-template/issues/55) | `backend` Swagger generation check in CI (fail if stale) | 🔁 In review |
-| [#56](https://github.com/GRACENOBLE/fullstack-template/issues/56) | `mobile` Loading state and skeleton screen pattern | 🔁 In review |
-| [#57](https://github.com/GRACENOBLE/fullstack-template/issues/57) | `mobile` Error state and retry UI pattern (`UiState<T>` sealed class) | 🔁 In review |
-| [#58](https://github.com/GRACENOBLE/fullstack-template/issues/58) | `web` Data table with sorting, filtering, and pagination (TanStack Table) | 🔁 In review |
+| [#50](https://github.com/GRACENOBLE/fullstack-template/issues/50) | `infra` Root dev script to start all services with one command | ✅ Done (merged) |
+| [#51](https://github.com/GRACENOBLE/fullstack-template/issues/51) | `backend` Add `.golangci.yml` linter config | ✅ Done (merged) |
+| [#52](https://github.com/GRACENOBLE/fullstack-template/issues/52) | `mobile` Add ktlint and integrate into CI | ✅ Done (merged) |
+| [#53](https://github.com/GRACENOBLE/fullstack-template/issues/53) | `infra` Renovate / Dependabot for automated dependency updates | ✅ Done (merged) |
+| [#54](https://github.com/GRACENOBLE/fullstack-template/issues/54) | `infra` First-run setup script for new contributors | ✅ Done (merged) |
+| [#55](https://github.com/GRACENOBLE/fullstack-template/issues/55) | `backend` Swagger generation check in CI (fail if stale) | ✅ Done (merged) |
+| [#56](https://github.com/GRACENOBLE/fullstack-template/issues/56) | `mobile` Loading state and skeleton screen pattern | ✅ Done (merged) |
+| [#57](https://github.com/GRACENOBLE/fullstack-template/issues/57) | `mobile` Error state and retry UI pattern (`UiState<T>` sealed class) | ✅ Done (merged) |
+| [#58](https://github.com/GRACENOBLE/fullstack-template/issues/58) | `web` Data table with sorting, filtering, and pagination (TanStack Table) | ✅ Done (merged) |
 
 ---
 
@@ -64,4 +64,4 @@ Tracks all identified gaps from the June 2026 template analysis. Issues live in 
 
 ---
 
-_Last updated: 2026-06-25 — #50–#58 implemented (first-week friction), PR pending._
+_Last updated: 2026-06-25 — PR #66 merged, all first-week friction issues done. Next: medium priority (#59–#62)._

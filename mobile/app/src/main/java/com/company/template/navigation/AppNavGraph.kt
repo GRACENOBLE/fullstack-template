@@ -18,11 +18,13 @@ import com.company.template.auth.RegisterScreen
 import com.company.template.auth.User
 import com.company.template.home.HomeScreen
 import com.company.template.onboarding.OnboardingScreen
+import com.company.template.settings.SettingsScreen
 
 private const val ROUTE_ONBOARDING = "onboarding"
 private const val ROUTE_LOGIN = "login"
 private const val ROUTE_REGISTER = "register"
 private const val ROUTE_HOME = "home"
+private const val ROUTE_SETTINGS = "settings"
 
 @Composable
 fun AppNavGraph(
@@ -96,6 +98,14 @@ fun AppNavGraph(
         composable(ROUTE_HOME) {
             HomeScreen(
                 displayName = currentUser?.displayName ?: currentUser?.email ?: "",
+                onSignOut = { authViewModel.signOut() },
+                onNavigateToSettings = { navController.navigate(ROUTE_SETTINGS) },
+            )
+        }
+        composable(ROUTE_SETTINGS) {
+            SettingsScreen(
+                displayName = currentUser?.displayName,
+                email = currentUser?.email,
                 onSignOut = { authViewModel.signOut() },
             )
         }

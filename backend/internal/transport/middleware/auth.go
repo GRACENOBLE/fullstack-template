@@ -19,14 +19,14 @@ func FirebaseAuth(verifier usecase.FirebaseTokenVerifier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		header := c.GetHeader("Authorization")
 		if !strings.HasPrefix(header, "Bearer ") {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing or invalid Authorization header"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": gin.H{"code": "UNAUTHORIZED", "message": "missing or invalid Authorization header"}})
 			return
 		}
 		idToken := strings.TrimPrefix(header, "Bearer ")
 
 		claims, err := verifier.VerifyIDToken(c.Request.Context(), idToken)
 		if err != nil || claims == nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": gin.H{"code": "UNAUTHORIZED", "message": "invalid or expired token"}})
 			return
 		}
 

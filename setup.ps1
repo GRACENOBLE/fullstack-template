@@ -141,7 +141,7 @@ if (Test-Path $webEnvLocal) {
 
 # ── 4. Start Postgres and run migrations ──────────────────────────────────────
 Header "Starting Postgres (Docker Compose) in a background window..."
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$ScriptDir\backend'; make docker-run" `
+Start-Process powershell -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", "Set-Location '$ScriptDir\backend'; make docker-run" `
     -WindowStyle Minimized
 
 Info "Waiting 5s for Postgres to be healthy..."

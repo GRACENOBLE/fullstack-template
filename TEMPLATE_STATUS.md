@@ -37,10 +37,10 @@ Tracks all identified gaps from the June 2026 template analysis. Issues live in 
 
 | # | Issue | Status |
 |---|-------|--------|
-| [#59](https://github.com/GRACENOBLE/fullstack-template/issues/59) | `mobile` Settings screen: show user profile + sign-out button | ⬜ Open |
-| [#60](https://github.com/GRACENOBLE/fullstack-template/issues/60) | `web` Dashboard page: fetch and display `/api/v1/me` | ⬜ Open |
-| [#61](https://github.com/GRACENOBLE/fullstack-template/issues/61) | `backend` Redis stream consumers: wire with feature flag or document as opt-in | ⬜ Open |
-| [#62](https://github.com/GRACENOBLE/fullstack-template/issues/62) | `backend` pprof endpoints for runtime profiling (gated to internal network) | ⬜ Open |
+| [#59](https://github.com/GRACENOBLE/fullstack-template/issues/59) | `mobile` Settings screen: show user profile + sign-out button | ✅ Done (merged) |
+| [#60](https://github.com/GRACENOBLE/fullstack-template/issues/60) | `web` Dashboard page: fetch and display `/api/v1/me` | ✅ Done (merged) |
+| [#61](https://github.com/GRACENOBLE/fullstack-template/issues/61) | `backend` Redis stream consumers: wire with feature flag or document as opt-in | ✅ Done (merged) |
+| [#62](https://github.com/GRACENOBLE/fullstack-template/issues/62) | `backend` pprof endpoints for runtime profiling (gated to internal network) | ✅ Done (merged) |
 
 ---
 

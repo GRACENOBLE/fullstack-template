@@ -1,14 +1,43 @@
 ---
 topic: error-handling
-last_verified: 2026-06-23
+last_verified: 2026-06-25
 sources:
   - internal/infrastructure/database/postgres/health_repository.go
   - internal/transport/handlers/health_handler.go
   - internal/transport/handlers/validation.go
+  - internal/transport/handlers/response.go
   - cmd/api/main.go
 ---
 
 # Error Handling
+
+## Response envelope
+
+All handler responses use helpers defined in `internal/transport/handlers/response.go`. Never call `c.JSON` directly in a handler.
+
+**Success shape:**
+```json
+{"data": <payload>}
+```
+
+**Error shape:**
+```json
+{"error": {"code": "snake_case_code", "message": "human readable message"}}
+```
+
+**Helper signatures:**
+```go
+// 200 with data wrapped in {"data": ...}
+func JSON[T any](c *gin.Context, data T)
+
+// Any status code with data wrapped in {"data": ...}
+func JSONStatus[T any](c *gin.Context, status int, data T)
+
+// Error response as {"error": {"code": "...", "message": "..."}}
+func JSONError(c *gin.Context, status int, code, message string)
+```
+
+Use `JSON` for standard 200 responses, `JSONStatus` when a non-200 success status is needed (e.g., 201 Created), and `JSONError` for all error responses.
 
 ## General rule
 Return errors up the call stack. Callers decide how to handle them.
@@ -38,17 +67,17 @@ func (r *HealthRepository) Health(ctx context.Context) (domain.HealthStats, erro
 ```
 
 ## Handler error responses
-Handlers call use cases, check errors, and map them to HTTP status codes. The health handler returns 503 when the DB is unreachable:
+Handlers call use cases, check errors, and map them to HTTP status codes using the `JSONError` helper. The health handler returns 503 when the DB is unreachable:
 
 ```go
 func (h *Handler) healthHandler(c *gin.Context) {
     stats, err := h.healthUC.GetHealth(c.Request.Context())
     if err != nil {
         log.Printf("health check failed: %v", err)
-        c.JSON(http.StatusServiceUnavailable, stats)
+        JSONStatus(c, http.StatusServiceUnavailable, stats)
         return
     }
-    c.JSON(http.StatusOK, stats)
+    JSON(c, stats)
 }
 ```
 
@@ -59,13 +88,13 @@ func (h *Handler) getItemHandler(c *gin.Context) {
     item, err := h.itemUC.GetItem(c.Request.Context(), id)
     if err != nil {
         if errors.Is(err, sql.ErrNoRows) {
-            c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+            JSONError(c, http.StatusNotFound, "not_found", "not found")
             return
         }
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+        JSONError(c, http.StatusInternalServerError, "internal_error", "internal error")
         return
     }
-    c.JSON(http.StatusOK, item)
+    JSON(c, item)
 }
 ```
 

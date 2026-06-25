@@ -29,6 +29,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "SENTRY_DSN", "\"${localProps.getProperty("SENTRY_DSN", "")}\"")
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${localProps.getProperty("GOOGLE_WEB_CLIENT_ID", "")}\"")
+        buildConfigField("String", "BACKEND_URL", "\"${localProps.getProperty("BACKEND_URL", "http://10.0.2.2:8080")}\"")
     }
 
     buildTypes {

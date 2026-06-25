@@ -1,6 +1,6 @@
 ---
 topic: routing
-last_verified: 2026-06-23
+last_verified: 2026-06-25
 sources:
   - internal/transport/handlers/handler.go
   - internal/transport/handlers/routes.go
@@ -9,7 +9,9 @@ sources:
   - internal/transport/handlers/auth_handler.go
   - internal/transport/handlers/me_handler.go
   - internal/transport/handlers/validation.go
+  - internal/transport/handlers/response.go
   - internal/transport/middleware/logger.go
+  - internal/transport/middleware/request_id.go
   - internal/server/server.go
   - cmd/api/main.go
 ---
@@ -78,7 +80,7 @@ prometheus.Register(postgres.NewDBStatsCollector(app.DB))
 
 return &http.Server{
     Addr:         fmt.Sprintf(":%d", app.Config.Port),
-    Handler:      h.RegisterRoutes(app.Config.RateLimitRPS, app.Config.RateLimitBurst, app.Config.SentryDSN),
+    Handler:      h.RegisterRoutes(app.Config.RateLimitRPS, app.Config.RateLimitBurst, app.Config.SentryDSN, app.Config.CORSAllowedOrigins),
     IdleTimeout:  time.Minute,
     ReadTimeout:  10 * time.Second,
     WriteTimeout: 30 * time.Second,
@@ -88,12 +90,14 @@ return &http.Server{
 ## Route registration
 All routes are registered in `RegisterRoutes()` on `*Handler`, which returns `http.Handler`.
 `rps` and `burst` come from `bootstrap.Config` (env vars `RATE_LIMIT_RPS` / `RATE_LIMIT_BURST`); pass `rps=0` to disable.
+`allowedOrigins` comes from `bootstrap.Config.CORSAllowedOrigins` (env var `CORS_ALLOWED_ORIGINS`); defaults to `["http://localhost:3000"]` when the env var is not set.
 `h.verifier` (set via `NewHandler`) controls Firebase auth — the verifier is read from the struct, not passed to `RegisterRoutes`; a `nil` verifier skips Firebase auth (development only — see [auth](auth.md)).
 
 ```go
-func (h *Handler) RegisterRoutes(rps float64, burst int, sentryDSN string) http.Handler {
+func (h *Handler) RegisterRoutes(rps float64, burst int, sentryDSN string, allowedOrigins []string) http.Handler {
     r := gin.New()
 
+    r.Use(middleware.RequestID())
     r.Use(middleware.SentryMiddleware(sentryDSN))
 
     // Gin's colorful logger locally; structured slog logger in staging/production.
@@ -106,7 +110,12 @@ func (h *Handler) RegisterRoutes(rps float64, burst int, sentryDSN string) http.
     r.Use(middleware.PrometheusMiddleware())
     r.Use(middleware.RateLimit(rps, burst))
 
-    r.Use(cors.New(cors.Config{ ... }))
+    r.Use(cors.New(cors.Config{
+        AllowOrigins:     allowedOrigins,
+        AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
+        AllowHeaders:     []string{"Accept", "Authorization", "Content-Type"},
+        AllowCredentials: true,
+    }))
 
     r.GET("/", h.HelloWorldHandler)
     r.GET("/health", h.HealthHandler)
@@ -156,21 +165,22 @@ func (h *Handler) RegisterRoutes(rps float64, burst int, sentryDSN string) http.
 
 ## Handler pattern
 All handlers are methods on `*Handler`. Always use `*gin.Context`.
+Use `JSON`, `JSONStatus`, and `JSONError` from `internal/transport/handlers/response.go` — do not call `c.JSON` directly in handlers (see [error-handling](error-handling.md) for the envelope shape).
 
 ```go
 func (h *Handler) myHandler(c *gin.Context) {
     result, err := h.someUC.DoSomething(c.Request.Context(), ...)
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+        JSONError(c, http.StatusInternalServerError, "internal_error", "internal error")
         return
     }
-    c.JSON(http.StatusOK, result)
+    JSON(c, result)
 }
 ```
 
 ## CORS configuration
 Pre-configured in `RegisterRoutes()` via `github.com/gin-contrib/cors`.
-Current allowed origin: `http://localhost:3000`.
+Allowed origins come from `allowedOrigins []string` (4th parameter), sourced from `bootstrap.Config.CORSAllowedOrigins` — set via the `CORS_ALLOWED_ORIGINS` env var (comma-separated, defaults to `http://localhost:3000`).
 Allowed methods: GET, POST, PUT, DELETE, OPTIONS, PATCH.
 `AllowCredentials: true` — cookies and auth headers pass through.
 

@@ -36,12 +36,12 @@ func (h *Handler) UpdateMeHandler(c *gin.Context) {
 
 	raw, exists := c.Get(middleware.FirebaseClaimsKey)
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		JSONError(c, http.StatusUnauthorized, "unauthorized", "missing or invalid token")
 		return
 	}
 	claims, ok := raw.(*usecase.FirebaseToken)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		JSONError(c, http.StatusUnauthorized, "unauthorized", "missing or invalid token")
 		return
 	}
 
@@ -53,10 +53,10 @@ func (h *Handler) UpdateMeHandler(c *gin.Context) {
 	}
 	updated, err := h.userRepo.Upsert(c.Request.Context(), u)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update profile"})
+		JSONError(c, http.StatusInternalServerError, "internal_error", "failed to update profile")
 		return
 	}
-	c.JSON(http.StatusOK, updated)
+	JSON(c, updated)
 }
 
 // DeleteMeHandler godoc
@@ -73,17 +73,17 @@ func (h *Handler) UpdateMeHandler(c *gin.Context) {
 func (h *Handler) DeleteMeHandler(c *gin.Context) {
 	raw, exists := c.Get(middleware.FirebaseClaimsKey)
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		JSONError(c, http.StatusUnauthorized, "unauthorized", "missing or invalid token")
 		return
 	}
 	claims, ok := raw.(*usecase.FirebaseToken)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		JSONError(c, http.StatusUnauthorized, "unauthorized", "missing or invalid token")
 		return
 	}
 
 	if err := h.userRepo.DeleteByFirebaseUID(c.Request.Context(), claims.UID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete account"})
+		JSONError(c, http.StatusInternalServerError, "internal_error", "failed to delete account")
 		return
 	}
 	c.Status(http.StatusNoContent)

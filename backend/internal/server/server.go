@@ -73,7 +73,7 @@ func NewServer(app *bootstrap.App, hub *ws.Hub) (*http.Server, error) {
 
 	return &http.Server{
 		Addr:         fmt.Sprintf(":%d", app.Config.Port),
-		Handler:      h.RegisterRoutes(app.Config.RateLimitRPS, app.Config.RateLimitBurst, app.Config.SentryDSN),
+		Handler:      h.RegisterRoutes(app.Config.RateLimitRPS, app.Config.RateLimitBurst, app.Config.SentryDSN, app.Config.CORSAllowedOrigins),
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,

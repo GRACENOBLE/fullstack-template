@@ -38,7 +38,7 @@ func (h *Handler) RegisterFCMToken(c *gin.Context) {
 	val, _ := c.Get(middleware.FirebaseClaimsKey)
 	claims, ok := val.(*usecase.FirebaseToken)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		JSONError(c, http.StatusUnauthorized, "unauthorized", "missing or invalid token")
 		return
 	}
 
@@ -48,7 +48,7 @@ func (h *Handler) RegisterFCMToken(c *gin.Context) {
 	}
 
 	if err := h.fcmTokenRepo.SaveToken(c.Request.Context(), claims.UID, req.Token, req.Platform); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save token"})
+		JSONError(c, http.StatusInternalServerError, "internal_error", "failed to save token")
 		return
 	}
 
@@ -62,7 +62,7 @@ func (h *Handler) RegisterFCMToken(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "token registered"})
+	JSON(c, gin.H{"message": "token registered"})
 }
 
 // UnregisterFCMToken removes an FCM device token, typically called on logout.
@@ -83,7 +83,7 @@ func (h *Handler) UnregisterFCMToken(c *gin.Context) {
 	val, _ := c.Get(middleware.FirebaseClaimsKey)
 	claims, ok := val.(*usecase.FirebaseToken)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		JSONError(c, http.StatusUnauthorized, "unauthorized", "missing or invalid token")
 		return
 	}
 
@@ -93,9 +93,9 @@ func (h *Handler) UnregisterFCMToken(c *gin.Context) {
 	}
 
 	if err := h.fcmTokenRepo.DeleteToken(c.Request.Context(), claims.UID, req.Token); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to remove token"})
+		JSONError(c, http.StatusInternalServerError, "internal_error", "failed to remove token")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "token unregistered"})
+	JSON(c, gin.H{"message": "token unregistered"})
 }

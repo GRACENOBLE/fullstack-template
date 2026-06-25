@@ -72,6 +72,7 @@ type Config struct {
 	R2Bucket                   string
 	R2PublicURL                string
 	IPAPIKey                   string
+	CORSAllowedOrigins         []string
 }
 
 // ConfigError is returned when required configuration is absent or invalid.
@@ -230,6 +231,14 @@ func loadConfig() Config {
 		burst = int(rps) * 5
 	}
 
+	corsOrigins := []string{"http://localhost:3000"}
+	if raw := os.Getenv("CORS_ALLOWED_ORIGINS"); raw != "" {
+		corsOrigins = strings.Split(raw, ",")
+		for i, o := range corsOrigins {
+			corsOrigins[i] = strings.TrimSpace(o)
+		}
+	}
+
 	return Config{
 		Port:                       port,
 		Env:                        os.Getenv("ENV"),
@@ -249,6 +258,7 @@ func loadConfig() Config {
 		R2Bucket:                   os.Getenv("R2_BUCKET"),
 		R2PublicURL:                os.Getenv("R2_PUBLIC_URL"),
 		IPAPIKey:                   os.Getenv("IPAPI_KEY"),
+		CORSAllowedOrigins:         corsOrigins,
 		DB: postgres.DBConfig{
 			Host:     os.Getenv("BLUEPRINT_DB_HOST"),
 			Port:     os.Getenv("BLUEPRINT_DB_PORT"),

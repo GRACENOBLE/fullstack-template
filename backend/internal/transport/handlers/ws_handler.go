@@ -41,11 +41,11 @@ func (h *Handler) WsHandler(c *gin.Context) {
 	if h.verifier != nil {
 		token := c.Query("token")
 		if token == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "missing token"})
+			JSONError(c, http.StatusUnauthorized, "unauthorized", "missing token")
 			return
 		}
 		if _, err := h.verifier.VerifyIDToken(c.Request.Context(), token); err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
+			JSONError(c, http.StatusUnauthorized, "unauthorized", "invalid or expired token")
 			return
 		}
 	}

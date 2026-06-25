@@ -26,6 +26,7 @@ func Logger() gin.HandlerFunc {
 			"path", path,
 			"latency", latency,
 			"ip", c.ClientIP(),
+			"request_id", c.GetString(RequestIDKey),
 		}
 		if query != "" {
 			attrs = append(attrs, "query", query)

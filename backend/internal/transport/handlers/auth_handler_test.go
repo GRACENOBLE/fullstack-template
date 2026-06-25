@@ -30,10 +30,13 @@ func TestMeHandler_WithClaims(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 
-	var got usecase.FirebaseToken
-	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+	var resp struct {
+		Data usecase.FirebaseToken `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("unmarshal body: %v", err)
 	}
+	got := resp.Data
 	if got.UID != want.UID || got.Email != want.Email || got.Name != want.Name {
 		t.Errorf("response mismatch: got %+v, want %+v", got, *want)
 	}

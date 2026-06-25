@@ -9,6 +9,7 @@ Operational guide for deploying and maintaining the fullstack template in stagin
 - [Prerequisites](#prerequisites)
 - [Environment variables](#environment-variables)
 - [First-time production setup](#first-time-production-setup)
+- [Pre-launch checklist](#pre-launch-checklist)
 - [Deploying the backend](#deploying-the-backend)
 - [Deploying the web app](#deploying-the-web-app)
 - [Deploying the mobile app](#deploying-the-mobile-app)
@@ -118,6 +119,39 @@ cd backend && make migrate-up
 ### 4. Deploy backend (first time)
 
 See [Deploying the backend](#deploying-the-backend).
+
+---
+
+## Pre-launch checklist
+
+Run through this before going live with any project based on this template.
+
+### Configuration
+- [ ] `ENV` is set to `production` — enables JSON logging and disables `/debug/pprof` and `/admin/queues`
+- [ ] `AUTH_SECRET` is a strong random value: `openssl rand -base64 32`
+- [ ] `CORS_ALLOWED_ORIGINS` lists your exact domain(s) — never `*` in production
+- [ ] `BLUEPRINT_DB_SSLMODE` is `require`
+- [ ] `RATE_LIMIT_RPS` is configured to a sensible value for your expected traffic
+
+### Infrastructure
+- [ ] Database backups are enabled on your PostgreSQL host (Supabase, Neon, and RDS all have this in their dashboard — turn it on)
+- [ ] Run `make migrate-up` against the production database before the first deploy, and on every subsequent deploy that includes migrations
+- [ ] If using R2 file uploads, CORS rules on the R2 bucket allow requests from your web domain
+
+### Firebase
+- [ ] Firebase Authentication is enabled with only the sign-in methods your app uses
+- [ ] Firebase security rules are reviewed (default rules may be too permissive)
+- [ ] `FIREBASE_SERVICE_ACCOUNT_JSON` in production is the production project's key, not a dev key
+
+### Observability
+- [ ] `SENTRY_DSN` (backend) and `NEXT_PUBLIC_SENTRY_DSN` (web) are set — you want errors reported from day one
+- [ ] The `/health` endpoint returns `200` after deploying (confirms DB connectivity)
+- [ ] Grafana is accessible and the **Backend Overview** dashboard shows live data (`http://<host>:3001`)
+
+### Mobile (if shipping Android)
+- [ ] `google-services.json` in the release build points to the production Firebase project
+- [ ] Release APK/AAB is signed with the production keystore (not the debug keystore)
+- [ ] Staged rollout is configured in Google Play Console before full release
 
 ---
 

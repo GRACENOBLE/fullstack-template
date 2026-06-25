@@ -42,3 +42,19 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Install Playwright browsers
+        run: pnpm playwright install --with-deps chromium
+
+      - name: E2E tests
+        run: pnpm test:e2e
+        env:
+          AUTH_SECRET: ci-test-secret-not-used-in-prod
+          NEXT_PUBLIC_FIREBASE_API_KEY: placeholder
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: placeholder.firebaseapp.com
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: placeholder
+          FIREBASE_PROJECT_ID: placeholder
+          FIREBASE_SERVICE_ACCOUNT_JSON: '{"type":"service_account"}'
+          BACKEND_URL: http://localhost:8080
+          NEXT_PUBLIC_BACKEND_URL: http://localhost:8080
+          NEXT_TELEMETRY_DISABLED: 1

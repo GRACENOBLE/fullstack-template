@@ -86,14 +86,21 @@ try {
     Fail "java not found. Install from https://adoptium.net/"
 }
 
-# Android SDK (ANDROID_HOME)
+# Android SDK (ANDROID_HOME or well-known default)
 $androidHome = $env:ANDROID_HOME
-if ($androidHome -and (Test-Path $androidHome)) {
-    Pass "Android SDK at ANDROID_HOME=$androidHome"
+if (-not $androidHome -or -not (Test-Path $androidHome)) {
+    $androidHome = "$env:LOCALAPPDATA\Android\Sdk"
+}
+if (Test-Path $androidHome) {
+    Pass "Android SDK at $androidHome"
+    if (-not $env:ANDROID_HOME) {
+        Info "ANDROID_HOME is not set as an environment variable — tools like the Gradle wrapper will still work, but you may want to add it:"
+        Info "  [System.Environment]::SetEnvironmentVariable('ANDROID_HOME', '$androidHome', 'User')"
+    }
 } else {
-    Fail "ANDROID_HOME is not set or points to a missing directory."
-    Info  "Install Android Studio and add ANDROID_HOME to your user environment variables."
-    Info  "Typical path: C:\Users\<you>\AppData\Local\Android\Sdk"
+    Fail "Android SDK not found at ANDROID_HOME or $env:LOCALAPPDATA\Android\Sdk"
+    Info  "Install Android Studio — it sets up the SDK automatically."
+    Info  "Then optionally set ANDROID_HOME to: $env:LOCALAPPDATA\Android\Sdk"
 }
 
 # Abort on failures

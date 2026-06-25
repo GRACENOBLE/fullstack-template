@@ -64,13 +64,19 @@ Feature suggestions are welcome. Open an issue with:
 
    ```bash
    # Backend
+   cd backend && go vet ./...
+   cd backend && make lint      # golangci-lint
    cd backend && make test
 
    # Web
-   cd web && pnpm lint && pnpm build
+   cd web && pnpm lint
+   cd web && pnpm test
+   cd web && pnpm build
 
    # Mobile
-   cd mobile && ./gradlew lint && ./gradlew test
+   cd mobile && ./gradlew lint
+   cd mobile && ./gradlew spotlessCheck   # ktlint formatting
+   cd mobile && ./gradlew test
    ```
 
 6. **Open your pull request** against `main`. Fill in the PR template including:
@@ -82,21 +88,47 @@ Feature suggestions are welcome. Open an issue with:
 
 ## Development Setup
 
-See [README.md — Getting Started](README.md#getting-started) for the full setup guide.
+### Prerequisites
 
-Quick summary:
+| Tool | Minimum version | Check |
+|---|---|---|
+| Go | 1.25 | `go version` |
+| Node.js | 22 | `node --version` |
+| pnpm | any | `pnpm --version` |
+| Docker Desktop | running | `docker info` |
+| JDK | 17 | `java -version` |
+| Android SDK | API 35 | `$ANDROID_HOME` set |
+
+### First-time setup
+
+Run the setup script once after cloning. It checks prerequisites, installs dependencies, copies `.env` files, and runs database migrations:
 
 ```bash
-# Start the database
-cd backend && make docker-run
+# macOS / Linux
+./setup.sh
 
-# Backend (hot reload)
-cd backend && make watch
+# Windows
+./setup.ps1
+```
 
-# Web (hot reload)
-cd web && pnpm dev
+### Starting all services
 
-# Mobile — open mobile/ in Android Studio, or build via Gradle
+```bash
+# macOS / Linux — starts Postgres, backend, and web in one terminal
+./dev.sh
+
+# Windows — opens three separate PowerShell windows
+./dev.ps1
+```
+
+Or start services individually:
+
+```bash
+cd backend && make docker-run   # Postgres
+cd backend && make watch        # backend hot reload → :8080
+cd web && pnpm dev              # web → :3000
+
+# Mobile — open mobile/ in Android Studio, or:
 cd mobile && ./gradlew assembleDebug
 ```
 
@@ -119,7 +151,9 @@ This project uses topic-based documentation in `backend/docs/` and `web/docs/` t
 | Component patterns or TypeScript conventions | `web/docs/components.md` |
 | Composable conventions, theme, or Material3 usage | `mobile/docs/compose-conventions.md` |
 | Activity setup, lifecycle, or ViewModel pattern | `mobile/docs/architecture.md` |
+| UiState<T>, UiStateContent, or loading/error patterns | `mobile/docs/ui-states.md` |
 | Test setup or testing patterns (mobile) | `mobile/docs/testing.md` |
+| Data table component or TanStack Table usage | `web/docs/data-table.md` |
 
 ### How to update a doc
 

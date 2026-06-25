@@ -12,28 +12,36 @@ object ApiClient {
     // getIdToken().result (synchronous) is safe — do NOT use await() here.
     private class AuthInterceptor : Interceptor {
         override fun intercept(chain: Interceptor.Chain): Response {
-            val token = runCatching {
-                // getIdToken(false) returns the cached token if still valid
-                FirebaseAuth.getInstance().currentUser
-                    ?.getIdToken(false)
-                    ?.result
-                    ?.token
-            }.getOrNull()
+            val token =
+                runCatching {
+                    // getIdToken(false) returns the cached token if still valid
+                    FirebaseAuth
+                        .getInstance()
+                        .currentUser
+                        ?.getIdToken(false)
+                        ?.result
+                        ?.token
+                }.getOrNull()
 
-            val request = if (token != null) {
-                chain.request().newBuilder()
-                    .header("Authorization", "Bearer $token")
-                    .build()
-            } else {
-                chain.request()
-            }
+            val request =
+                if (token != null) {
+                    chain
+                        .request()
+                        .newBuilder()
+                        .header("Authorization", "Bearer $token")
+                        .build()
+                } else {
+                    chain.request()
+                }
             return chain.proceed(request)
         }
     }
 
-    val httpClient: OkHttpClient = OkHttpClient.Builder()
-        .addInterceptor(AuthInterceptor())
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .build()
+    val httpClient: OkHttpClient =
+        OkHttpClient
+            .Builder()
+            .addInterceptor(AuthInterceptor())
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
 }

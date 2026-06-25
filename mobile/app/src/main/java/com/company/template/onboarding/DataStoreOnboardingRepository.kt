@@ -14,16 +14,16 @@ import java.io.IOException
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "onboarding_prefs")
 
-class DataStoreOnboardingRepository(private val context: Context) : OnboardingRepository {
-
+class DataStoreOnboardingRepository(
+    private val context: Context,
+) : OnboardingRepository {
     private val hasSeenKey = booleanPreferencesKey("has_seen_onboarding")
 
     override fun hasSeenOnboarding(): Flow<Boolean> =
         context.dataStore.data
             .catch { e ->
                 if (e is IOException) emit(emptyPreferences()) else throw e
-            }
-            .map { prefs -> prefs[hasSeenKey] ?: false }
+            }.map { prefs -> prefs[hasSeenKey] ?: false }
 
     override suspend fun markSeen() {
         context.dataStore.edit { prefs -> prefs[hasSeenKey] = true }

@@ -1,0 +1,30 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - errcheck       # check errors are handled
+    - gosimple       # simplify code
+    - govet          # go vet checks
+    - ineffassign    # detect ineffectual assignments
+    - staticcheck    # staticcheck suite
+    - unused         # unused code
+    - gofmt          # formatting
+    - goimports      # import ordering
+    - misspell       # spelling mistakes
+    - revive         # drop-in golint replacement
+    - bodyclose      # HTTP response body close check
+    - noctx          # HTTP requests without context
+    - exhaustive     # exhaustive switch on enums (skip if too noisy — comment it out)
+
+linters-settings:
+  revive:
+    rules:
+      - name: exported
+        disabled: true   # don't require godoc on all exports
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck     # test code can ignore errors freely

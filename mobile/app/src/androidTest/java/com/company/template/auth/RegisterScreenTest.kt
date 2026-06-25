@@ -14,7 +14,6 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class RegisterScreenTest {
-
     @get:Rule
     val composeTestRule = createComposeRule()
 
@@ -81,12 +80,13 @@ class RegisterScreenTest {
     fun registerScreen_clickCreateAccount_invokesCallback() {
         var registerCalled = false
         setContent(
-            registerForm = RegisterFormState(
-                name = "Alice",
-                email = "alice@example.com",
-                password = "pass",
-                confirmPassword = "pass",
-            ),
+            registerForm =
+                RegisterFormState(
+                    name = "Alice",
+                    email = "alice@example.com",
+                    password = "pass",
+                    confirmPassword = "pass",
+                ),
             onRegister = { registerCalled = true },
         )
         // Use the test tag to target the button specifically, not the heading

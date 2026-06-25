@@ -12,7 +12,6 @@ import org.junit.Test
  * [shouldInitSentry], which IS pure Kotlin and testable here.
  */
 class SentryInitTest {
-
     @Test
     fun `shouldInitSentry returns false when DSN is empty`() {
         assertFalse(shouldInitSentry(""))

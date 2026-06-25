@@ -14,7 +14,6 @@ data class WsState(
 class WebSocketViewModel(
     private val manager: WebSocketManager,
 ) : ViewModel() {
-
     private val _state = MutableStateFlow(WsState())
     val state: StateFlow<WsState> = _state.asStateFlow()
 

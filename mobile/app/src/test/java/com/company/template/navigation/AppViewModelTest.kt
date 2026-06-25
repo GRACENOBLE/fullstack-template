@@ -28,11 +28,16 @@ class FakeAuthRepositoryForNav : AuthRepository {
         _authStateFlow.value = user
     }
 
-    override suspend fun signInWithEmail(email: String, password: String): Result<Unit> =
-        Result.success(Unit)
+    override suspend fun signInWithEmail(
+        email: String,
+        password: String,
+    ): Result<Unit> = Result.success(Unit)
 
-    override suspend fun registerWithEmail(name: String, email: String, password: String): Result<Unit> =
-        Result.success(Unit)
+    override suspend fun registerWithEmail(
+        name: String,
+        email: String,
+        password: String,
+    ): Result<Unit> = Result.success(Unit)
 
     override suspend fun signInWithGoogle(googleIdToken: String): Result<Unit> = Result.success(Unit)
 
@@ -59,7 +64,6 @@ class FakeOnboardingRepositoryForNav : OnboardingRepository {
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AppViewModelTest {
-
     private lateinit var fakeAuth: FakeAuthRepositoryForNav
     private lateinit var fakeOnboarding: FakeOnboardingRepositoryForNav
     private lateinit var viewModel: AppViewModel
@@ -81,72 +85,78 @@ class AppViewModelTest {
     }
 
     @Test
-    fun `startDestination is Onboarding when not seen and not signed in`() = runTest {
-        fakeOnboarding.setSeen(false)
-        fakeAuth.setUser(null)
-        createViewModel()
+    fun `startDestination is Onboarding when not seen and not signed in`() =
+        runTest {
+            fakeOnboarding.setSeen(false)
+            fakeAuth.setUser(null)
+            createViewModel()
 
-        val dest = viewModel.startDestination.first { it != null }
-        assertEquals(StartDestination.ONBOARDING, dest)
-    }
-
-    @Test
-    fun `startDestination is Login when onboarding seen and not signed in`() = runTest {
-        fakeOnboarding.setSeen(true)
-        fakeAuth.setUser(null)
-        createViewModel()
-
-        val dest = viewModel.startDestination.first { it != null }
-        assertEquals(StartDestination.LOGIN, dest)
-    }
+            val dest = viewModel.startDestination.first { it != null }
+            assertEquals(StartDestination.ONBOARDING, dest)
+        }
 
     @Test
-    fun `startDestination is Home when user is signed in`() = runTest {
-        fakeOnboarding.setSeen(true)
-        fakeAuth.setUser(User(uid = "uid123", email = "a@b.com", displayName = "Alice", photoUrl = null))
-        createViewModel()
+    fun `startDestination is Login when onboarding seen and not signed in`() =
+        runTest {
+            fakeOnboarding.setSeen(true)
+            fakeAuth.setUser(null)
+            createViewModel()
 
-        val dest = viewModel.startDestination.first { it != null }
-        assertEquals(StartDestination.HOME, dest)
-    }
-
-    @Test
-    fun `startDestination transitions to Login after onboarding is marked seen`() = runTest {
-        fakeOnboarding.setSeen(false)
-        fakeAuth.setUser(null)
-        createViewModel()
-
-        val firstDest = viewModel.startDestination.first { it != null }
-        assertEquals(StartDestination.ONBOARDING, firstDest)
-
-        fakeOnboarding.setSeen(true)
-        val secondDest = viewModel.startDestination.first { it == StartDestination.LOGIN }
-        assertEquals(StartDestination.LOGIN, secondDest)
-    }
+            val dest = viewModel.startDestination.first { it != null }
+            assertEquals(StartDestination.LOGIN, dest)
+        }
 
     @Test
-    fun `startDestination transitions to Login after sign out`() = runTest {
-        fakeOnboarding.setSeen(true)
-        fakeAuth.setUser(User(uid = "uid123", email = "a@b.com", displayName = "Alice", photoUrl = null))
-        createViewModel()
+    fun `startDestination is Home when user is signed in`() =
+        runTest {
+            fakeOnboarding.setSeen(true)
+            fakeAuth.setUser(User(uid = "uid123", email = "a@b.com", displayName = "Alice", photoUrl = null))
+            createViewModel()
 
-        val homeDest = viewModel.startDestination.first { it == StartDestination.HOME }
-        assertEquals(StartDestination.HOME, homeDest)
-
-        fakeAuth.signOut()
-        val loginDest = viewModel.startDestination.first { it == StartDestination.LOGIN }
-        assertEquals(StartDestination.LOGIN, loginDest)
-    }
+            val dest = viewModel.startDestination.first { it != null }
+            assertEquals(StartDestination.HOME, dest)
+        }
 
     @Test
-    fun `markOnboardingSeen persists the flag`() = runTest {
-        fakeOnboarding.setSeen(false)
-        fakeAuth.setUser(null)
-        createViewModel()
+    fun `startDestination transitions to Login after onboarding is marked seen`() =
+        runTest {
+            fakeOnboarding.setSeen(false)
+            fakeAuth.setUser(null)
+            createViewModel()
 
-        viewModel.markOnboardingSeen()
+            val firstDest = viewModel.startDestination.first { it != null }
+            assertEquals(StartDestination.ONBOARDING, firstDest)
 
-        val seen = fakeOnboarding.hasSeenOnboarding().first()
-        assertEquals(true, seen)
-    }
+            fakeOnboarding.setSeen(true)
+            val secondDest = viewModel.startDestination.first { it == StartDestination.LOGIN }
+            assertEquals(StartDestination.LOGIN, secondDest)
+        }
+
+    @Test
+    fun `startDestination transitions to Login after sign out`() =
+        runTest {
+            fakeOnboarding.setSeen(true)
+            fakeAuth.setUser(User(uid = "uid123", email = "a@b.com", displayName = "Alice", photoUrl = null))
+            createViewModel()
+
+            val homeDest = viewModel.startDestination.first { it == StartDestination.HOME }
+            assertEquals(StartDestination.HOME, homeDest)
+
+            fakeAuth.signOut()
+            val loginDest = viewModel.startDestination.first { it == StartDestination.LOGIN }
+            assertEquals(StartDestination.LOGIN, loginDest)
+        }
+
+    @Test
+    fun `markOnboardingSeen persists the flag`() =
+        runTest {
+            fakeOnboarding.setSeen(false)
+            fakeAuth.setUser(null)
+            createViewModel()
+
+            viewModel.markOnboardingSeen()
+
+            val seen = fakeOnboarding.hasSeenOnboarding().first()
+            assertEquals(true, seen)
+        }
 }

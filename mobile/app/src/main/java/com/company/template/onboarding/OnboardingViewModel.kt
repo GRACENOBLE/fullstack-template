@@ -8,11 +8,15 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
-class OnboardingViewModel(private val repo: OnboardingRepository) : ViewModel() {
-
+class OnboardingViewModel(
+    private val repo: OnboardingRepository,
+) : ViewModel() {
     fun hasSeenOnboarding(): Flow<Boolean> = repo.hasSeenOnboarding()
 
-    fun markSeen(onComplete: () -> Unit = {}, onError: (Throwable) -> Unit = {}) {
+    fun markSeen(
+        onComplete: () -> Unit = {},
+        onError: (Throwable) -> Unit = {},
+    ) {
         viewModelScope.launch {
             runCatching { repo.markSeen() }
                 .onSuccess { onComplete() }
@@ -21,8 +25,9 @@ class OnboardingViewModel(private val repo: OnboardingRepository) : ViewModel() 
     }
 
     companion object {
-        fun factory(repo: OnboardingRepository): ViewModelProvider.Factory = viewModelFactory {
-            initializer { OnboardingViewModel(repo) }
-        }
+        fun factory(repo: OnboardingRepository): ViewModelProvider.Factory =
+            viewModelFactory {
+                initializer { OnboardingViewModel(repo) }
+            }
     }
 }

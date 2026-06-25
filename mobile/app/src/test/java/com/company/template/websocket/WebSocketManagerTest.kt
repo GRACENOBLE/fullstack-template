@@ -11,7 +11,6 @@ import org.junit.Before
 import org.junit.Test
 
 class WebSocketManagerTest {
-
     private lateinit var factory: FakeWebSocketFactory
     private val scheduledActions = mutableListOf<() -> Unit>()
 
@@ -24,7 +23,8 @@ class WebSocketManagerTest {
         )
 
     private fun fakeResponse(): Response =
-        Response.Builder()
+        Response
+            .Builder()
             .request(Request.Builder().url("ws://localhost:8080/ws").build())
             .protocol(Protocol.HTTP_1_1)
             .code(101)

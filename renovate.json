@@ -1,0 +1,31 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "schedule": ["before 9am on Monday"],
+  "timezone": "UTC",
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true
+    },
+    {
+      "matchPackageNames": ["go"],
+      "matchManagers": ["gomod"],
+      "groupName": "Go runtime"
+    },
+    {
+      "matchManagers": ["npm"],
+      "groupName": "Web npm dependencies"
+    },
+    {
+      "matchManagers": ["gradle", "gradle-wrapper"],
+      "groupName": "Android Gradle dependencies"
+    }
+  ],
+  "ignorePaths": [
+    "**/testdata/**",
+    "**/.github/workflows/**"
+  ]
+}

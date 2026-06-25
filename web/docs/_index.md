@@ -16,3 +16,4 @@ The `docs` agent reads this index first to locate the right file.
 | Firebase Cloud Messaging — permission, token, service worker, useFCM hook | [fcm.md](fcm.md) | `lib/fcm.ts`, `lib/useFCM.ts`, `public/firebase-messaging-sw.js`, `lib/fcm.test.ts` |
 | Object storage (Cloudflare R2) — presign utility, uploadToR2, useUpload hook | [storage.md](storage.md) | `lib/storage.ts`, `lib/useUpload.ts` |
 | Authentication (NextAuth v5) — providers, session, proxy, forms, hooks | [auth.md](auth.md) | `auth.ts`, `proxy.ts`, `features/auth/` |
+| DataTable component (TanStack Table v8) — sorting, filtering, pagination, column definitions | [data-table.md](data-table.md) | `components/data-table/DataTable.tsx`, `components/data-table/columns.ts`, `components/data-table/index.ts`, `app/demo/page.tsx`, `app/demo/DemoTable.tsx` |

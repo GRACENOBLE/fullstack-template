@@ -33,7 +33,6 @@ import io.sentry.android.core.SentryAndroid
 fun shouldInitSentry(dsn: String): Boolean = dsn.isNotBlank()
 
 class MainActivity : ComponentActivity() {
-
     // activity-compose 1.8.0 transitively pulls in Fragment 1.6+; lint can't detect this
     @SuppressLint("InvalidFragmentVersionForActivityResult")
     private val requestNotificationPermission =
@@ -70,7 +69,7 @@ class MainActivity : ComponentActivity() {
                     AppNavGraph(
                         appViewModel = appViewModel,
                         authViewModel = authViewModel,
-                        modifier = Modifier.padding(innerPadding)
+                        modifier = Modifier.padding(innerPadding),
                     )
                 }
             }
@@ -87,9 +86,12 @@ fun AppPreview() {
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
+fun Greeting(
+    name: String,
+    modifier: Modifier = Modifier,
+) {
     androidx.compose.material3.Text(
         text = "Hello $name!",
-        modifier = modifier
+        modifier = modifier,
     )
 }

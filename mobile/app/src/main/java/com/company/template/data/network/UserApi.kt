@@ -19,19 +19,22 @@ object UserApi {
     suspend fun getMe(
         baseUrl: String = BuildConfig.BACKEND_URL,
         client: OkHttpClient = ApiClient.httpClient,
-    ): Result<UserProfile> = runCatching {
-        val request = Request.Builder()
-            .url("$baseUrl/api/v1/me")
-            .get()
-            .build()
+    ): Result<UserProfile> =
+        runCatching {
+            val request =
+                Request
+                    .Builder()
+                    .url("$baseUrl/api/v1/me")
+                    .get()
+                    .build()
 
-        client.newCall(request).execute().use { response ->
-            val body = response.body?.string() ?: error("empty body")
-            if (!response.isSuccessful) {
-                val err = json.decodeFromString<ApiErrorResponse>(body)
-                error(err.error.message)
+            client.newCall(request).execute().use { response ->
+                val body = response.body?.string() ?: error("empty body")
+                if (!response.isSuccessful) {
+                    val err = json.decodeFromString<ApiErrorResponse>(body)
+                    error(err.error.message)
+                }
+                json.decodeFromString<ApiResponse<UserProfile>>(body).data
             }
-            json.decodeFromString<ApiResponse<UserProfile>>(body).data
         }
-    }
 }

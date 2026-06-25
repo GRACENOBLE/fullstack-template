@@ -42,7 +42,7 @@ test.describe('register page', () => {
   test('renders name, email, password, and confirm password fields', async ({ page }) => {
     await expect(page.getByLabel('Name')).toBeVisible()
     await expect(page.getByLabel('Email')).toBeVisible()
-    await expect(page.getByLabel('Password')).toBeVisible()
+    await expect(page.getByLabel('Password', { exact: true })).toBeVisible()
     await expect(page.getByLabel('Confirm password')).toBeVisible()
   })
 

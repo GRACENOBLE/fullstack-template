@@ -44,10 +44,11 @@ fun RegisterScreen(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 32.dp, vertical = 48.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 32.dp, vertical = 48.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -107,11 +108,15 @@ fun RegisterScreen(
         } else {
             Button(
                 onClick = onRegister,
-                enabled = registerForm.name.isNotBlank() && registerForm.email.isNotBlank() &&
-                    registerForm.password.isNotBlank() && registerForm.confirmPassword.isNotBlank(),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag(RegisterTestTags.CREATE_ACCOUNT_BUTTON),
+                enabled =
+                    registerForm.name.isNotBlank() &&
+                        registerForm.email.isNotBlank() &&
+                        registerForm.password.isNotBlank() &&
+                        registerForm.confirmPassword.isNotBlank(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .testTag(RegisterTestTags.CREATE_ACCOUNT_BUTTON),
             ) {
                 Text(text = "Create Account")
             }

@@ -8,6 +8,14 @@ sources:
   - app/src/main/java/com/company/template/data/network/ApiClient.kt
   - app/src/main/java/com/company/template/data/network/ApiResponse.kt
   - app/src/main/java/com/company/template/data/network/UserApi.kt
+  - app/src/main/java/com/company/template/auth/AuthViewModel.kt
+  - app/src/main/java/com/company/template/auth/LoginScreen.kt
+  - app/src/main/java/com/company/template/auth/RegisterScreen.kt
+  - app/src/main/java/com/company/template/home/HomeScreen.kt
+  - app/src/main/java/com/company/template/home/HomeViewModel.kt
+  - app/src/main/java/com/company/template/navigation/AppNavGraph.kt
+  - app/src/main/java/com/company/template/ui/state/UiState.kt
+  - app/src/main/java/com/company/template/ui/components/UiStateContent.kt
 ---
 
 # Activity and Compose architecture
@@ -80,6 +88,45 @@ Key calls:
 - `AppViewModel.factory(authRepository, onboardingRepository)` — drives the initial navigation decision (onboarding vs. home).
 
 Both repositories are instantiated lazily with `applicationContext` to avoid Activity leaks.
+
+## Feature-scoped ViewModel state: AuthUiState
+
+`AuthViewModel` exposes its operation state as a `StateFlow<AuthUiState>` where `AuthUiState` is a sealed class defined in `auth/AuthViewModel.kt`:
+
+```kotlin
+sealed class AuthUiState {
+    data object Idle : AuthUiState()
+    data object Loading : AuthUiState()
+    data object Success : AuthUiState()
+    data class Error(val message: String) : AuthUiState()
+}
+```
+
+- `Idle` — no operation in progress; initial state and the state restored after sign-out or error dismissal.
+- `Loading` — an async auth operation (sign-in, register, Google sign-in) is in flight.
+- `Success` — the operation completed successfully; `AppNavGraph` observes this to navigate to the home screen.
+- `Error(message)` — the operation failed; `message` is displayed inline in the auth screen.
+
+`AuthViewModel` also exposes two separate form state flows — `loginForm: StateFlow<LoginFormState>` and `registerForm: StateFlow<RegisterFormState>` — so each screen receives only its own form fields. Any field update clears an active `Error` state via `clearError()`.
+
+This is a feature-scoped sealed class suited to auth operations where `Success` carries no payload. For ViewModels that load data and expose it to the UI, use the generic `UiState<T>` sealed class instead — see `mobile/docs/ui-states.md`.
+
+## Generic UI state: UiState\<T\>
+
+`ui/state/UiState.kt` defines a generic sealed class for ViewModels that load typed data:
+
+```kotlin
+sealed class UiState<out T> {
+    data object Idle : UiState<Nothing>()
+    data object Loading : UiState<Nothing>()
+    data class Success<T>(val data: T) : UiState<T>()
+    data class Error(val message: String) : UiState<Nothing>()
+}
+```
+
+`HomeViewModel` uses this pattern: it exposes `profileState: StateFlow<UiState<UserProfile>>` and provides a `refresh()` method that re-runs the fetch. `HomeScreen` collects the flow with `collectAsStateWithLifecycle()` and delegates rendering to `UiStateContent`.
+
+See `mobile/docs/ui-states.md` for the full pattern, wiring instructions, and testing approach.
 
 ## Single-Activity pattern
 

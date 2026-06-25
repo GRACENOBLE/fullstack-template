@@ -15,22 +15,41 @@ class FakeWebSocketFactory : WebSocketFactory {
 
     val lastSocket: FakeWebSocket get() = sockets.last()
 
-    override fun newWebSocket(request: Request, listener: WebSocketListener): WebSocket {
+    override fun newWebSocket(
+        request: Request,
+        listener: WebSocketListener,
+    ): WebSocket {
         lastListener = listener
         return FakeWebSocket(request).also { sockets.add(it) }
     }
 }
 
-class FakeWebSocket(private val req: Request = Request.Builder().url("ws://localhost/ws").build()) :
-    WebSocket {
-
+class FakeWebSocket(
+    private val req: Request = Request.Builder().url("ws://localhost/ws").build(),
+) : WebSocket {
     val sentMessages = mutableListOf<String>()
     var closed = false
 
     override fun request(): Request = req
+
     override fun queueSize(): Long = 0L
-    override fun send(text: String): Boolean { sentMessages.add(text); return true }
+
+    override fun send(text: String): Boolean {
+        sentMessages.add(text)
+        return true
+    }
+
     override fun send(bytes: ByteString): Boolean = false
-    override fun close(code: Int, reason: String?): Boolean { closed = true; return true }
-    override fun cancel() { closed = true }
+
+    override fun close(
+        code: Int,
+        reason: String?,
+    ): Boolean {
+        closed = true
+        return true
+    }
+
+    override fun cancel() {
+        closed = true
+    }
 }

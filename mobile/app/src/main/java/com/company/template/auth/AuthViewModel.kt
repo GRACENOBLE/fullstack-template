@@ -24,9 +24,14 @@ import kotlinx.coroutines.launch
 
 sealed class AuthUiState {
     data object Idle : AuthUiState()
+
     data object Loading : AuthUiState()
+
     data object Success : AuthUiState()
-    data class Error(val message: String) : AuthUiState()
+
+    data class Error(
+        val message: String,
+    ) : AuthUiState()
 }
 
 data class LoginFormState(
@@ -41,8 +46,9 @@ data class RegisterFormState(
     val confirmPassword: String = "",
 )
 
-class AuthViewModel(private val repo: AuthRepository) : ViewModel() {
-
+class AuthViewModel(
+    private val repo: AuthRepository,
+) : ViewModel() {
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
@@ -90,7 +96,8 @@ class AuthViewModel(private val repo: AuthRepository) : ViewModel() {
         val (email, password) = _loginForm.value
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
-            repo.signInWithEmail(email, password)
+            repo
+                .signInWithEmail(email, password)
                 .onSuccess { _uiState.value = AuthUiState.Success }
                 .onFailure { _uiState.value = AuthUiState.Error(it.message ?: "Sign in failed") }
         }
@@ -104,7 +111,8 @@ class AuthViewModel(private val repo: AuthRepository) : ViewModel() {
         }
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
-            repo.registerWithEmail(name, email, password)
+            repo
+                .registerWithEmail(name, email, password)
                 .onSuccess { _uiState.value = AuthUiState.Success }
                 .onFailure { _uiState.value = AuthUiState.Error(it.message ?: "Registration failed") }
         }
@@ -115,11 +123,11 @@ class AuthViewModel(private val repo: AuthRepository) : ViewModel() {
             _uiState.value = AuthUiState.Loading
             fetchGoogleIdToken(activity)
                 .onSuccess { token ->
-                    repo.signInWithGoogle(token)
+                    repo
+                        .signInWithGoogle(token)
                         .onSuccess { _uiState.value = AuthUiState.Success }
                         .onFailure { _uiState.value = AuthUiState.Error(it.message ?: "Sign in failed") }
-                }
-                .onFailure { _uiState.value = AuthUiState.Error(it.message ?: "Google sign in failed") }
+                }.onFailure { _uiState.value = AuthUiState.Error(it.message ?: "Google sign in failed") }
         }
     }
 
@@ -134,41 +142,46 @@ class AuthViewModel(private val repo: AuthRepository) : ViewModel() {
         if (_uiState.value is AuthUiState.Error) _uiState.value = AuthUiState.Idle
     }
 
-    private suspend fun fetchGoogleIdToken(activity: Activity): Result<String> = runCatching {
-        val webClientId = resolveWebClientId(activity)
-        check(webClientId.isNotEmpty()) {
-            "Google Sign-In not configured. Enable Google Sign-In in Firebase Console and " +
-                "re-download google-services.json, or add GOOGLE_WEB_CLIENT_ID to local.properties."
-        }
+    private suspend fun fetchGoogleIdToken(activity: Activity): Result<String> =
+        runCatching {
+            val webClientId = resolveWebClientId(activity)
+            check(webClientId.isNotEmpty()) {
+                "Google Sign-In not configured. Enable Google Sign-In in Firebase Console and " +
+                    "re-download google-services.json, or add GOOGLE_WEB_CLIENT_ID to local.properties."
+            }
 
-        val credentialManager = CredentialManager.create(activity)
-        val option = GetSignInWithGoogleOption.Builder(webClientId).build()
-        val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
+            val credentialManager = CredentialManager.create(activity)
+            val option = GetSignInWithGoogleOption.Builder(webClientId).build()
+            val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
 
-        val result = try {
-            credentialManager.getCredential(activity, request)
-        } catch (e: NoCredentialException) {
-            activity.startActivity(
-                Intent(Settings.ACTION_ADD_ACCOUNT).apply {
-                    putExtra(Settings.EXTRA_ACCOUNT_TYPES, arrayOf("com.google"))
+            val result =
+                try {
+                    credentialManager.getCredential(activity, request)
+                } catch (e: NoCredentialException) {
+                    activity.startActivity(
+                        Intent(Settings.ACTION_ADD_ACCOUNT).apply {
+                            putExtra(Settings.EXTRA_ACCOUNT_TYPES, arrayOf("com.google"))
+                        },
+                    )
+                    error("No Google account found on device. Please add an account and try again.")
                 }
-            )
-            error("No Google account found on device. Please add an account and try again.")
+
+            val credential = result.credential
+            check(
+                credential is CustomCredential &&
+                    credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL,
+            ) { "Unexpected credential type: ${credential.type}" }
+
+            GoogleIdTokenCredential.createFrom(credential.data).idToken
         }
-
-        val credential = result.credential
-        check(
-            credential is CustomCredential &&
-                credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
-        ) { "Unexpected credential type: ${credential.type}" }
-
-        GoogleIdTokenCredential.createFrom(credential.data).idToken
-    }
 
     private fun resolveWebClientId(context: Context): String {
-        val resId = context.resources.getIdentifier(
-            "default_web_client_id", "string", context.packageName
-        )
+        val resId =
+            context.resources.getIdentifier(
+                "default_web_client_id",
+                "string",
+                context.packageName,
+            )
         if (resId != 0) {
             val fromResource = context.getString(resId)
             if (fromResource.isNotEmpty()) return fromResource
@@ -177,8 +190,9 @@ class AuthViewModel(private val repo: AuthRepository) : ViewModel() {
     }
 
     companion object {
-        fun factory(repo: AuthRepository): ViewModelProvider.Factory = viewModelFactory {
-            initializer { AuthViewModel(repo) }
-        }
+        fun factory(repo: AuthRepository): ViewModelProvider.Factory =
+            viewModelFactory {
+                initializer { AuthViewModel(repo) }
+            }
     }
 }

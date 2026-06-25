@@ -29,6 +29,11 @@ jobs:
       - name: Install dependencies
         run: go mod download
 
+      - name: Check Swagger docs are up to date
+        run: |
+          make swagger
+          git diff --exit-code docs/swagger/
+
       - name: Vet
         run: go vet ./...
 

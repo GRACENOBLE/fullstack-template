@@ -12,94 +12,93 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.company.template.data.network.UserApi
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.company.template.data.network.UserProfile
+import com.company.template.ui.components.UiStateContent
 import com.company.template.ui.theme.TemplateTheme
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 @Composable
 fun HomeScreen(
     displayName: String,
     onSignOut: () -> Unit,
-    modifier: Modifier = Modifier
+    viewModel: HomeViewModel = viewModel(factory = HomeViewModel.factory()),
+    modifier: Modifier = Modifier,
 ) {
-    var profile by remember { mutableStateOf<UserProfile?>(null) }
-    var profileError by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(Unit) {
-        val result = withContext(Dispatchers.IO) { UserApi.getMe() }
-        result
-            .onSuccess { profile = it }
-            .onFailure { profileError = it.message }
-    }
+    val profileState by viewModel.profileState.collectAsStateWithLifecycle()
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 32.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(horizontal = 32.dp),
         verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             text = "Welcome back!",
             style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary
+            color = MaterialTheme.colorScheme.primary,
         )
         Spacer(modifier = Modifier.height(16.dp))
         if (displayName.isNotBlank()) {
             Text(
                 text = displayName,
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Spacer(modifier = Modifier.height(8.dp))
         }
-        profile?.let { p ->
-            p.displayName?.let { name ->
-                Text(
-                    text = name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            p.email?.let { email ->
-                Text(
-                    text = email,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-        profileError?.let { err ->
-            Text(
-                text = "Profile error: $err",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+        UiStateContent(
+            state = profileState,
+            onRetry = viewModel::refresh,
+        ) { profile ->
+            ProfileContent(profile = profile)
         }
         Spacer(modifier = Modifier.height(40.dp))
         Button(
             onClick = onSignOut,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-                contentColor = MaterialTheme.colorScheme.onErrorContainer
-            ),
-            modifier = Modifier.fillMaxWidth()
+            colors =
+                ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                ),
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Text(text = "Sign Out")
         }
+    }
+}
+
+@Composable
+private fun ProfileContent(
+    profile: UserProfile,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        profile.displayName?.let { name ->
+            Text(
+                text = name,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        profile.email?.let { email ->
+            Text(
+                text = email,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
     }
 }
 
@@ -107,20 +106,41 @@ fun HomeScreen(
 @Composable
 fun HomeScreenPreview() {
     TemplateTheme {
-        HomeScreen(
-            displayName = "Alice",
-            onSignOut = {}
-        )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun HomeScreenNoNamePreview() {
-    TemplateTheme {
-        HomeScreen(
-            displayName = "",
-            onSignOut = {}
-        )
+        // Preview cannot instantiate HomeViewModel (needs BuildConfig),
+        // so we show a static layout only for the outer shell.
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 32.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = "Welcome back!",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Alice",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            ProfileContent(profile = UserProfile(uid = "u1", email = "alice@example.com", displayName = "Alice"))
+            Spacer(modifier = Modifier.height(40.dp))
+            Button(
+                onClick = {},
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    ),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(text = "Sign Out")
+            }
+        }
     }
 }

@@ -12,7 +12,10 @@ import okhttp3.WebSocketListener
  * Factory abstraction over [OkHttpClient.newWebSocket] — injectable for unit tests.
  */
 fun interface WebSocketFactory {
-    fun newWebSocket(request: Request, listener: WebSocketListener): WebSocket
+    fun newWebSocket(
+        request: Request,
+        listener: WebSocketListener,
+    ): WebSocket
 }
 
 /**
@@ -67,38 +70,55 @@ class WebSocketManager(
         val urlBuilder = StringBuilder(serverUrl)
         currentToken?.let { urlBuilder.append("?token=").append(it) }
 
-        val request = Request.Builder()
-            .url(urlBuilder.toString())
-            .build()
+        val request =
+            Request
+                .Builder()
+                .url(urlBuilder.toString())
+                .build()
 
         socket = factory.newWebSocket(request, listener)
     }
 
-    private val listener = object : WebSocketListener() {
-        override fun onOpen(webSocket: WebSocket, response: Response) {
-            retryCount = 0
-            onOpen?.invoke()
-        }
+    private val listener =
+        object : WebSocketListener() {
+            override fun onOpen(
+                webSocket: WebSocket,
+                response: Response,
+            ) {
+                retryCount = 0
+                onOpen?.invoke()
+            }
 
-        override fun onMessage(webSocket: WebSocket, text: String) {
-            parseEnvelope(text)?.let { this@WebSocketManager.onMessage?.invoke(it) }
-        }
+            override fun onMessage(
+                webSocket: WebSocket,
+                text: String,
+            ) {
+                parseEnvelope(text)?.let { this@WebSocketManager.onMessage?.invoke(it) }
+            }
 
-        override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-            onClose?.invoke()
-        }
-
-        override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-            onError?.invoke(t)
-            if (active && retryCount < maxRetries) {
-                val delay = minOf(1000L * (1L shl retryCount), 30_000L)
-                retryCount++
-                reconnectScheduler(delay) { if (active) openSocket() }
-            } else {
+            override fun onClosed(
+                webSocket: WebSocket,
+                code: Int,
+                reason: String,
+            ) {
                 onClose?.invoke()
             }
+
+            override fun onFailure(
+                webSocket: WebSocket,
+                t: Throwable,
+                response: Response?,
+            ) {
+                onError?.invoke(t)
+                if (active && retryCount < maxRetries) {
+                    val delay = minOf(1000L * (1L shl retryCount), 30_000L)
+                    retryCount++
+                    reconnectScheduler(delay) { if (active) openSocket() }
+                } else {
+                    onClose?.invoke()
+                }
+            }
         }
-    }
 
     private fun parseEnvelope(text: String): WsEnvelope? =
         try {

@@ -15,7 +15,6 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class LoginScreenTest {
-
     @get:Rule
     val composeTestRule = createComposeRule()
 

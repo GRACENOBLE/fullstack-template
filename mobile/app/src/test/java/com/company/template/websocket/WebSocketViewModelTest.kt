@@ -15,7 +15,6 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class WebSocketViewModelTest {
-
     private lateinit var factory: FakeWebSocketFactory
     private lateinit var manager: WebSocketManager
     private lateinit var viewModel: WebSocketViewModel
@@ -24,11 +23,12 @@ class WebSocketViewModelTest {
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         factory = FakeWebSocketFactory()
-        manager = WebSocketManager(
-            serverUrl = "ws://localhost:8080/ws",
-            factory = factory,
-            reconnectScheduler = { _, _ -> },
-        )
+        manager =
+            WebSocketManager(
+                serverUrl = "ws://localhost:8080/ws",
+                factory = factory,
+                reconnectScheduler = { _, _ -> },
+            )
         viewModel = WebSocketViewModel(manager)
     }
 

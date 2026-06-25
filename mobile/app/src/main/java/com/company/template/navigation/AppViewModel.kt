@@ -16,14 +16,13 @@ import kotlinx.coroutines.launch
 enum class StartDestination {
     ONBOARDING,
     LOGIN,
-    HOME
+    HOME,
 }
 
 class AppViewModel(
     authRepository: AuthRepository,
     private val onboardingRepository: OnboardingRepository,
 ) : ViewModel() {
-
     val startDestination: StateFlow<StartDestination?> =
         combine(
             onboardingRepository.hasSeenOnboarding(),
@@ -50,8 +49,9 @@ class AppViewModel(
         fun factory(
             authRepository: AuthRepository,
             onboardingRepository: OnboardingRepository,
-        ): ViewModelProvider.Factory = viewModelFactory {
-            initializer { AppViewModel(authRepository, onboardingRepository) }
-        }
+        ): ViewModelProvider.Factory =
+            viewModelFactory {
+                initializer { AppViewModel(authRepository, onboardingRepository) }
+            }
     }
 }

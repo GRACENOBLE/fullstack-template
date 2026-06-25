@@ -7,6 +7,8 @@ sources:
   - internal/bootstrap/bootstrap.go
   - internal/infrastructure/database/postgres/db.go
   - pkg/firebase/admin.go
+  - .golangci.yml
+  - Makefile
 ---
 
 # Environment Variables
@@ -57,6 +59,17 @@ Located at `backend/.env`. Never commit this file with real credentials.
 The `.gitignore` in `backend/` excludes `.env` (verify before committing).
 
 Docker Compose reads the same `.env` file to configure the Postgres container, so the values must be consistent between the app and Docker.
+
+## Quality commands
+
+| Command | What it runs |
+|---|---|
+| `make test` | `go test ./... -v` |
+| `make itest` | `go test ./internal/infrastructure/... -v` (requires Docker) |
+| `make lint` | `golangci-lint run ./...` |
+| `make swagger` | regenerates `docs/swagger/` from swaggo annotations |
+
+`make lint` uses the config in `backend/.golangci.yml`. Enabled linters: `errcheck`, `gosimple`, `govet`, `ineffassign`, `staticcheck`, `unused`, `gofmt`, `goimports`, `misspell`, `revive`, `bodyclose`, `noctx`, `exhaustive`. The `revive` `exported` rule is disabled. Run `make lint` locally before pushing; CI also runs it.
 
 ## Adding a new environment variable
 1. Add to `backend/.env` with a descriptive name.

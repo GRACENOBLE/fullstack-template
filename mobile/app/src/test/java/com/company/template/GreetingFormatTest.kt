@@ -1,10 +1,9 @@
 package com.company.template
 
-import org.junit.Test
 import org.junit.Assert.*
+import org.junit.Test
 
 class GreetingFormatTest {
-
     @Test
     fun greeting_text_contains_name() {
         val name = "World"

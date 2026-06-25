@@ -13,9 +13,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.company.template.auth.AuthUiState
 import com.company.template.auth.AuthViewModel
-import com.company.template.auth.User
 import com.company.template.auth.LoginScreen
 import com.company.template.auth.RegisterScreen
+import com.company.template.auth.User
 import com.company.template.home.HomeScreen
 import com.company.template.onboarding.OnboardingScreen
 
@@ -47,12 +47,13 @@ fun AppNavGraph(
         }
     }
 
-    val resolvedStart = when (startDestination) {
-        StartDestination.ONBOARDING -> ROUTE_ONBOARDING
-        StartDestination.LOGIN -> ROUTE_LOGIN
-        StartDestination.HOME -> ROUTE_HOME
-        null -> return // wait until resolved
-    }
+    val resolvedStart =
+        when (startDestination) {
+            StartDestination.ONBOARDING -> ROUTE_ONBOARDING
+            StartDestination.LOGIN -> ROUTE_LOGIN
+            StartDestination.HOME -> ROUTE_HOME
+            null -> return // wait until resolved
+        }
 
     NavHost(
         navController = navController,
@@ -66,7 +67,7 @@ fun AppNavGraph(
                     navController.navigate(ROUTE_LOGIN) {
                         popUpTo(ROUTE_ONBOARDING) { inclusive = true }
                     }
-                }
+                },
             )
         }
         composable(ROUTE_LOGIN) {

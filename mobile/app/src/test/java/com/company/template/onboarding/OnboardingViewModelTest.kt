@@ -33,7 +33,6 @@ class FakeOnboardingRepository : OnboardingRepository {
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class OnboardingViewModelTest {
-
     private lateinit var fakeRepo: FakeOnboardingRepository
     private lateinit var viewModel: OnboardingViewModel
 
@@ -50,19 +49,21 @@ class OnboardingViewModelTest {
     }
 
     @Test
-    fun `hasSeenOnboarding emits false initially`() = runTest {
-        val value = viewModel.hasSeenOnboarding().first()
-        assertEquals(false, value)
-    }
+    fun `hasSeenOnboarding emits false initially`() =
+        runTest {
+            val value = viewModel.hasSeenOnboarding().first()
+            assertEquals(false, value)
+        }
 
     @Test
-    fun `markSeen calls repository and flow emits true`() = runTest {
-        var callbackInvoked = false
-        viewModel.markSeen(onComplete = { callbackInvoked = true })
+    fun `markSeen calls repository and flow emits true`() =
+        runTest {
+            var callbackInvoked = false
+            viewModel.markSeen(onComplete = { callbackInvoked = true })
 
-        assertTrue(fakeRepo.markSeenCalled)
-        assertTrue(callbackInvoked)
-        val value = viewModel.hasSeenOnboarding().first()
-        assertEquals(true, value)
-    }
+            assertTrue(fakeRepo.markSeenCalled)
+            assertTrue(callbackInvoked)
+            val value = viewModel.hasSeenOnboarding().first()
+            assertEquals(true, value)
+        }
 }

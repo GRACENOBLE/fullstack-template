@@ -6,7 +6,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FcmRegistrationPayloadTest {
-
     private val json = Json { encodeDefaults = true }
 
     @Test

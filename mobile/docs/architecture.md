@@ -14,6 +14,7 @@ sources:
   - app/src/main/java/com/company/template/home/HomeScreen.kt
   - app/src/main/java/com/company/template/home/HomeViewModel.kt
   - app/src/main/java/com/company/template/navigation/AppNavGraph.kt
+  - app/src/main/java/com/company/template/settings/SettingsScreen.kt
   - app/src/main/java/com/company/template/ui/state/UiState.kt
   - app/src/main/java/com/company/template/ui/components/UiStateContent.kt
 ---
@@ -127,6 +128,22 @@ sealed class UiState<out T> {
 `HomeViewModel` uses this pattern: it exposes `profileState: StateFlow<UiState<UserProfile>>` and provides a `refresh()` method that re-runs the fetch. `HomeScreen` collects the flow with `collectAsStateWithLifecycle()` and delegates rendering to `UiStateContent`.
 
 See `mobile/docs/ui-states.md` for the full pattern, wiring instructions, and testing approach.
+
+## Navigation graph (AppNavGraph)
+
+`navigation/AppNavGraph.kt` owns all route constants and composable destinations. Route constants are private to the file:
+
+| Constant | Value | Destination |
+|---|---|---|
+| `ROUTE_ONBOARDING` | `"onboarding"` | `OnboardingScreen` |
+| `ROUTE_LOGIN` | `"login"` | `LoginScreen` |
+| `ROUTE_REGISTER` | `"register"` | `RegisterScreen` |
+| `ROUTE_HOME` | `"home"` | `HomeScreen` |
+| `ROUTE_SETTINGS` | `"settings"` | `SettingsScreen` |
+
+`AppNavGraph` resolves the start destination from `AppViewModel.startDestination` (`StateFlow<StartDestination?>`) — it returns early (renders nothing) while the value is `null`. The `LaunchedEffect(authUiState)` block navigates to `ROUTE_HOME` (clearing the back stack) when `AuthUiState.Success` is emitted.
+
+`HomeScreen` receives `onNavigateToSettings = { navController.navigate(ROUTE_SETTINGS) }`. The settings destination passes `currentUser?.displayName` and `currentUser?.email` to `SettingsScreen`; sign-out calls `authViewModel.signOut()`.
 
 ## Single-Activity pattern
 

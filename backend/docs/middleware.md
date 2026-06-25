@@ -118,11 +118,17 @@ Unmatched routes (404s with no Gin `FullPath()`) are recorded under the path lab
 
 ## LocalNetworkOnly
 
-`LocalNetworkOnly() gin.HandlerFunc` aborts with `403 Forbidden` when the client IP is neither a loopback address nor an RFC 1918 private address. In release mode, `RegisterRoutes` applies it as a per-route middleware on `/metrics` so the Prometheus scrape endpoint is reachable from the internal network but not from external clients.
+`LocalNetworkOnly() gin.HandlerFunc` aborts with `403 Forbidden` when the client IP is neither a loopback address nor an RFC 1918 private address. `RegisterRoutes` applies it in two places:
+
+1. `/metrics` — in release mode only, so the Prometheus scrape endpoint is reachable from the internal network but not from external clients.
+2. `/debug/pprof/*` — unconditionally (both debug and release modes), applied as a group middleware so all pprof endpoints are always restricted to loopback/private addresses.
 
 ```go
 // release mode only:
 r.GET("/metrics", middleware.LocalNetworkOnly(), gin.WrapH(promhttp.Handler()))
+
+// all modes:
+debug := r.Group("/debug/pprof", middleware.LocalNetworkOnly())
 ```
 
 ## GeoFromRequest

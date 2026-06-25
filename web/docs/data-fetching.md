@@ -1,6 +1,6 @@
 ---
 topic: data-fetching
-last_verified: 2026-06-24
+last_verified: 2026-06-25
 sources:
   - app/page.tsx
   - app/layout.tsx
@@ -11,6 +11,9 @@ sources:
   - lib/trpc/server.ts
   - lib/trpc/utils.ts
   - app/providers.tsx
+  - lib/user-profile.ts
+  - app/(dashboard)/dashboard/page.tsx
+  - app/(dashboard)/dashboard/ProfileCard.tsx
 ---
 
 # Data Fetching
@@ -112,3 +115,70 @@ export function HealthStatus() {
 ```
 
 See [`docs/trpc.md`](trpc.md) for full setup details, context, protected procedures, and how to add new routers.
+
+## Backend fetch utility pattern (`lib/user-profile.ts`)
+
+For fetches to the Go backend that don't warrant a tRPC procedure, place a typed utility function in `lib/`. The `fetchUserProfile` utility in `lib/user-profile.ts` demonstrates the canonical shape:
+
+```ts
+// lib/user-profile.ts
+export interface UserProfile {
+  uid: string
+  email: string
+  displayName: string
+}
+
+export async function fetchUserProfile(userId: string): Promise<UserProfile> {
+  const backendUrl = process.env.BACKEND_URL   // server-only env var
+  if (!backendUrl) throw new Error('BACKEND_URL environment variable is not set')
+
+  const res = await fetch(`${backendUrl}/api/v1/me`, {
+    cache: 'no-store',
+    headers: { 'X-User-Id': userId },
+  })
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch user profile: ${res.status} ${res.statusText}`)
+  }
+
+  const body = (await res.json()) as { data: UserProfile }
+  return body.data   // unwrap Go backend { "data": ... } envelope
+}
+```
+
+Key rules:
+- Use `process.env.BACKEND_URL` (no `NEXT_PUBLIC_` prefix) — the utility runs server-side only.
+- Always assert `res.ok` before calling `.res.json()`.
+- Unwrap the Go backend's `{ "data": ... }` envelope before returning.
+- `cache: 'no-store'` — user-specific data must not be cached across requests.
+
+### Server Component with fallback
+
+`app/(dashboard)/dashboard/page.tsx` calls `fetchUserProfile` inside a Server Component and falls back to session data when the backend is unreachable:
+
+```tsx
+// app/(dashboard)/dashboard/page.tsx
+export default async function DashboardPage() {
+  const session = await auth()
+  if (!session) redirect('/login')
+
+  const fallbackProfile: UserProfile = {
+    uid: session.user?.id ?? '',
+    email: session.user?.email ?? '',
+    displayName: session.user?.name ?? session.user?.email ?? 'User',
+  }
+
+  let profile: UserProfile = fallbackProfile
+  try {
+    profile = await fetchUserProfile(fallbackProfile.uid)
+  } catch {
+    profile = fallbackProfile
+  }
+
+  return <ProfileCard profile={profile} />
+}
+```
+
+`ProfileCard` (`app/(dashboard)/dashboard/ProfileCard.tsx`) is a pure Server Component — no `"use client"` directive — that receives a `UserProfile` prop and renders it.
+
+> Auth note: NextAuth is configured with the JWT/Credentials strategy. The original Firebase ID token is not stored in the session — only decoded claims (uid, email, name) are. `fetchUserProfile` therefore sends `X-User-Id` instead of a Firebase Bearer token.

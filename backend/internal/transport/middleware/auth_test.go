@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -33,6 +34,12 @@ func TestFirebaseAuth_MissingHeader(t *testing.T) {
 
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("expected 401, got %d", w.Code)
+	}
+	// Error body must use the nested envelope: {"error":{"code":"...","message":"..."}}
+	// so the mobile client's ApiErrorResponse can deserialise it.
+	body := w.Body.String()
+	if !strings.Contains(body, `"code"`) {
+		t.Errorf("expected nested error envelope with 'code' key, got: %s", body)
 	}
 }
 

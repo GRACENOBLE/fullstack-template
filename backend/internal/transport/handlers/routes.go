@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"net/http/pprof"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -54,6 +55,18 @@ func (h *Handler) RegisterRoutes(rps float64, burst int, sentryDSN string, allow
 	}
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	// /debug/pprof — always restricted to loopback / RFC 1918 (never public).
+	debug := r.Group("/debug/pprof", middleware.LocalNetworkOnly())
+	{
+		debug.GET("/", gin.WrapF(pprof.Index))
+		debug.GET("/cmdline", gin.WrapF(pprof.Cmdline))
+		debug.GET("/profile", gin.WrapF(pprof.Profile))
+		debug.GET("/symbol", gin.WrapF(pprof.Symbol))
+		debug.POST("/symbol", gin.WrapF(pprof.Symbol))
+		debug.GET("/trace", gin.WrapF(pprof.Trace))
+		debug.GET("/:profile", gin.WrapF(pprof.Index))
+	}
 
 	// Asynqmon job-monitoring UI — debug/local only.
 	if gin.Mode() == gin.DebugMode && h.queueUI != nil {

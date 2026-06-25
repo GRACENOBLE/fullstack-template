@@ -12,6 +12,7 @@ sources:
   - app/src/main/java/com/company/template/home/HomeViewModel.kt
   - app/src/main/java/com/company/template/navigation/AppNavGraph.kt
   - app/src/main/java/com/company/template/onboarding/OnboardingScreen.kt
+  - app/src/main/java/com/company/template/settings/SettingsScreen.kt
   - app/src/main/java/com/company/template/ui/components/UiStateContent.kt
 ---
 
@@ -93,6 +94,40 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
 ### Screen vs component
 - **Screens** — top-level Composables called from `AppNavGraph`. File name: `<Feature>Screen.kt`.
 - **Components** — reusable pieces. Place in `ui/components/`. Accept a `modifier` parameter; use Material3 primitives.
+
+### Stateless screens
+
+Screens are fully stateless — all data and callbacks arrive as parameters. `SettingsScreen` is a representative example: it receives `displayName: String?`, `email: String?`, and `onSignOut: () -> Unit` and performs no logic itself.
+
+```kotlin
+@Composable
+fun SettingsScreen(
+    displayName: String?,
+    email: String?,
+    onSignOut: () -> Unit,
+    modifier: Modifier = Modifier,
+)
+```
+
+The caller (`AppNavGraph`) reads `currentUser` from the ViewModel and passes the values down. Multiple `@Preview` functions cover populated and null states:
+
+```kotlin
+@Preview(showBackground = true)
+@Composable
+fun SettingsScreenPreview() {
+    TemplateTheme {
+        SettingsScreen(displayName = "Alice Example", email = "alice@example.com", onSignOut = {})
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun SettingsScreenNullPreview() {
+    TemplateTheme {
+        SettingsScreen(displayName = null, email = null, onSignOut = {})
+    }
+}
+```
 
 ### Previews
 Every public Composable must have a `@Preview`:

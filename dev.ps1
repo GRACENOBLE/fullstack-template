@@ -5,15 +5,15 @@
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 
 Write-Host "[postgres] Starting Docker Compose (Postgres)..." -ForegroundColor Blue
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$ScriptDir\backend'; make docker-run" `
+Start-Process powershell -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", "Set-Location '$ScriptDir\backend'; make docker-run" `
     -WindowStyle Normal
 
 Write-Host "[backend]  Waiting 5s for Postgres, then starting Go backend on :8080..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$ScriptDir\backend'; Start-Sleep 5; make watch" `
+Start-Process powershell -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", "Set-Location '$ScriptDir\backend'; Start-Sleep 5; make watch" `
     -WindowStyle Normal
 
 Write-Host "[web]      Starting Next.js dev server on :3000..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$ScriptDir\web'; pnpm dev" `
+Start-Process powershell -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", "Set-Location '$ScriptDir\web'; pnpm dev" `
     -WindowStyle Normal
 
 Write-Host ""

@@ -1,6 +1,6 @@
 # Fullstack Template
 
-A production-ready fullstack starter. Clone it, rename things, and focus on your business logic, the infrastructure is already wired. Save on AI tokens too. Ships with a Go + Gin backend, Next.js 16 web app, Android mobile app (Kotlin + Compose), PostgreSQL, Docker Compose, hot reload, integration testing, and a full agentic development setup for AI coding assistants.
+A production-ready fullstack starter. Clone it, rename things, and focus on your business logic — the infrastructure is already wired. Ships with a Go + Gin backend, Next.js 16 web app, Android mobile app (Kotlin + Compose), PostgreSQL, Docker Compose, hot reload, integration testing, and a full agentic development setup for AI coding assistants.
 
 ## Table of Contents
 
@@ -8,11 +8,11 @@ A production-ready fullstack starter. Clone it, rename things, and focus on your
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-  - [Running the App](#running-the-app)
+  - [Quick start](#quick-start)
+  - [Manual setup](#manual-setup)
 - [Project Structure](#project-structure)
 - [Environment Variables](#environment-variables)
-- [Development](#development)
+- [Development commands](#development-commands)
 - [Testing](#testing)
 - [Working with AI Agents](#working-with-ai-agents)
 - [Contributing](#contributing)
@@ -20,99 +20,88 @@ A production-ready fullstack starter. Clone it, rename things, and focus on your
 
 ## Features
 
-- **Go backend** with Gin, structured into clean `cmd/` and `internal/` layers
-- **Next.js 16 web app** with React 19, TypeScript, and Tailwind CSS 4
+- **Go backend** with Gin, structured into clean `cmd/` and `internal/` layers (domain → usecase → infrastructure → transport)
+- **Next.js 16 web app** with React 19, TypeScript 5, Tailwind CSS 4, tRPC, and NextAuth v5
 - **Android mobile app** with Kotlin 2.2, Jetpack Compose BOM 2026.02, and Material3
-- **PostgreSQL** database managed via Docker Compose
-- **Hot reload** on both web (`next dev`) and backend ([Air](https://github.com/air-verse/air))
+- **PostgreSQL 16** managed via Docker Compose with goose migrations
+- **Hot reload** on both web (`pnpm dev`) and backend ([Air](https://github.com/air-verse/air))
 - **Integration tests** using [Testcontainers](https://testcontainers.com/) — no mocks, real DB
-- **CORS** pre-configured between web and backend
-- **`.env` support** via `godotenv`
-- **Makefile** for common backend tasks
+- **Firebase Authentication** across web and Android — Google OAuth + email/password
+- **Redis + Asynq** for background job queues (opt-in)
+- **pprof** profiling endpoints restricted to loopback/private IPs
+- **Prometheus + Grafana** observability stack in Docker Compose
+- **Renovate** for automated dependency updates (Monday morning runs, minor/patch automerge)
+- **golangci-lint**, **ktlint (Spotless)**, and **ESLint** wired into CI
 - **Agentic infrastructure** — AGENTS.md, CLAUDE.md, topic docs, subagents, hooks, and slash commands ready out of the box for all three layers
 
 ## Tech Stack
 
-| Layer     | Technology                                          |
-|-----------|-----------------------------------------------------|
-| Web       | Next.js 16, React 19, TypeScript                    |
-| Styling   | Tailwind CSS 4                                      |
-| Backend   | Go, Gin                                             |
-| Database  | PostgreSQL 16 (via Docker)                          |
-| DB Driver | pgx v5 (standard library style)                     |
-| Mobile    | Android, Kotlin 2.2, Jetpack Compose, Material3     |
-| Dev Tools | Air (hot reload), pnpm, Docker, Gradle 9.4          |
-| Testing   | Go test, Testcontainers, JUnit 4, Espresso          |
+| Layer | Technology |
+|---|---|
+| Web | Next.js 16, React 19, TypeScript 5, Tailwind CSS 4 |
+| Backend | Go 1.25, Gin v1.12 |
+| Database | PostgreSQL 16 (via Docker), goose migrations, pgx v5 |
+| Auth | Firebase Authentication (web + Android) |
+| Background jobs | Redis, Asynq (opt-in) |
+| Mobile | Android, Kotlin 2.2, Jetpack Compose BOM 2026.02, Material3 |
+| Dev tools | Air (hot reload), pnpm, Docker, Gradle 9.4 |
+| Testing | Testcontainers (Go), Vitest + Testing Library (web), JUnit 4 + Compose test rules (Android) |
+| Observability | Prometheus, Grafana, Sentry |
 
 ## Getting Started
 
 ### Prerequisites
 
-- [Go 1.21+](https://go.dev/dl/)
-- [Node.js 20+](https://nodejs.org/) and [pnpm](https://pnpm.io/installation)
-- [Docker](https://www.docker.com/) and Docker Compose
-- [Android Studio Meerkat (2024.3+)](https://developer.android.com/studio) with Android SDK API 36 and JDK 17 (for mobile)
+| Tool | Min version | Notes |
+|---|---|---|
+| [Go](https://go.dev/dl/) | 1.25 | |
+| [Node.js](https://nodejs.org/) | 22 | |
+| [pnpm](https://pnpm.io/installation) | any | `npm i -g pnpm` |
+| [Docker Desktop](https://www.docker.com/) | 24 | Required for Postgres and integration tests |
+| [Android Studio Meerkat (2024.3+)](https://developer.android.com/studio) | — | For mobile; needs SDK API 36 + JDK 17 |
+| [Air](https://github.com/air-verse/air) | any | `go install github.com/air-verse/air@latest` |
 
-### Installation
+### Quick start
 
 ```bash
 git clone https://github.com/your-username/fullstack-template.git
 cd fullstack-template
+
+# First-time setup: installs deps, copies .env.example files, checks prerequisites
+./setup.sh        # macOS / Linux
+.\setup.ps1       # Windows PowerShell
+
+# Start all three services (backend + web + mobile hot-reload) in parallel
+./dev.sh          # macOS / Linux
+.\dev.ps1         # Windows PowerShell
 ```
 
-**Backend:**
+### Manual setup
 
+**Backend:**
 ```bash
 cd backend
-cp .env .env.local   # adjust values as needed
+cp .env.example .env   # fill in your values
 go mod download
+make docker-run        # start Postgres
+make watch             # hot reload via Air → :8080
 ```
 
 **Web:**
-
 ```bash
 cd web
 pnpm install
+cp .env.example .env.local   # fill in Firebase + backend URL
+pnpm dev                     # → :3000
 ```
 
 **Mobile:**
 
-Open `mobile/` in Android Studio. The Gradle wrapper handles all SDK downloads. Alternatively:
+Open `mobile/` in Android Studio. The Gradle wrapper handles all SDK downloads. Copy `google-services.json` from your Firebase project into `mobile/app/`.
 
 ```bash
-cd mobile && ./gradlew assembleDebug
+cd mobile && ./gradlew installDebug   # build and install on connected device/emulator
 ```
-
-### Running the App
-
-**1. Start the database:**
-
-```bash
-cd backend && make docker-run
-```
-
-**2. Start the backend** (new terminal):
-
-```bash
-cd backend && make watch   # hot reload via Air
-# or: make run             # run once, no reload
-```
-
-**3. Start the web app** (new terminal):
-
-```bash
-cd web && pnpm dev
-```
-
-**4. Run the mobile app** — connect a device or start an emulator, then:
-
-```bash
-cd mobile && ./gradlew installDebug
-```
-
-Or run directly from Android Studio.
-
-Web: `http://localhost:3000` — Backend API: `http://localhost:8080`
 
 ## Project Structure
 
@@ -120,126 +109,165 @@ Web: `http://localhost:3000` — Backend API: `http://localhost:8080`
 fullstack-template/
 ├── AGENTS.md                    # AI agent instructions (all agents)
 ├── CLAUDE.md                    # Claude Code workflow and conventions
+├── CONTRIBUTING.md              # Contributor guide
+├── RUNBOOK.md                   # Deployment and operations guide
+├── TEMPLATE_STATUS.md           # Readiness gap tracker
+├── docs/
+│   └── adr/                     # Architecture Decision Records
+├── dev.sh / dev.ps1             # Start all services in parallel
+├── setup.sh / setup.ps1         # First-run contributor setup
+├── renovate.json                # Automated dependency updates
 ├── .claude/
 │   ├── agents/                  # Specialized Claude subagents
 │   ├── commands/                # Custom slash commands
-│   ├── hooks/                   # Auto-format + guard hooks
-│   └── settings.json            # Hook configuration
+│   └── hooks/                   # Auto-format + guard hooks
 ├── backend/
-│   ├── AGENTS.md                # Backend agent instructions
-│   ├── docs/                    # Topic docs: database, routing, testing, errors, env
-│   ├── cmd/api/main.go          # Entry point
+│   ├── docs/                    # Topic docs: routing, testing, migrations, auth, …
+│   ├── cmd/
+│   │   ├── api/main.go          # Entry point — wires all layers
+│   │   └── migrate/main.go      # Migration CLI (goose)
 │   ├── internal/
-│   │   ├── database/
-│   │   │   ├── database.go      # DB connection + queries
-│   │   │   └── database_test.go # Integration tests
-│   │   └── server/
-│   │       ├── server.go        # HTTP server setup
-│   │       └── routes.go        # Route definitions
-│   ├── .air.toml
-│   ├── .env
-│   ├── docker-compose.yml
+│   │   ├── domain/              # Layer 1: entities (no external deps)
+│   │   ├── usecase/             # Layer 2: application logic + interfaces
+│   │   ├── infrastructure/
+│   │   │   ├── database/postgres/  # Repository implementations + Testcontainers tests
+│   │   │   ├── database/migrations/ # SQL migration files (goose)
+│   │   │   ├── cache/redis/     # Redis cache implementation
+│   │   │   ├── queue/           # Asynq task definitions and worker
+│   │   │   └── streams/         # Redis Streams producer/consumer (opt-in)
+│   │   ├── transport/
+│   │   │   ├── handlers/        # HTTP handlers + routes
+│   │   │   └── middleware/      # Logger, auth, rate limiter, pprof guard
+│   │   └── server/server.go     # Wires all layers → *http.Server
+│   ├── pkg/                     # Shared packages (logger, firebase)
+│   ├── .env.example
+│   ├── docker-compose.yml       # Postgres + Prometheus + Grafana
 │   └── Makefile
 ├── web/
-│   ├── AGENTS.md                # Web agent instructions
-│   ├── docs/                    # Topic docs: routing, data-fetching, styling, components
-│   ├── app/
-│   │   ├── layout.tsx
-│   │   ├── page.tsx
-│   │   └── globals.css
-│   ├── public/
-│   ├── next.config.ts
-│   ├── package.json
-│   └── tsconfig.json
+│   ├── docs/                    # Topic docs: routing, auth, tRPC, data-fetching, …
+│   ├── app/                     # Next.js App Router
+│   │   ├── (auth)/              # Unauthenticated pages (login, register)
+│   │   └── (dashboard)/         # Protected pages
+│   ├── components/              # Shared UI components (DataTable, layout, common)
+│   ├── features/                # Domain-scoped feature folders
+│   ├── lib/                     # Pure utilities and non-React helpers
+│   ├── server/                  # tRPC routers and server-side logic
+│   └── .env.example
 └── mobile/
-    ├── AGENTS.md                # Mobile agent instructions
-    ├── docs/                    # Topic docs: compose-conventions, architecture, testing
-    ├── app/
-    │   ├── build.gradle.kts     # App dependencies and build config
-    │   └── src/main/java/com/company/template/
-    │       ├── MainActivity.kt  # Single entry point
-    │       └── ui/theme/        # Color, Theme, Type (Material3)
-    ├── gradle/
-    │   └── libs.versions.toml   # Version catalog
-    ├── build.gradle.kts
-    └── settings.gradle.kts
+    ├── docs/                    # Topic docs: compose-conventions, architecture, …
+    ├── app/src/main/java/com/company/template/
+    │   ├── MainActivity.kt      # Single Activity entry point
+    │   ├── navigation/          # AppNavGraph, route constants
+    │   ├── ui/state/            # UiState<T> sealed class + UiStateContent composable
+    │   ├── ui/theme/            # Color, Theme, Type (Material3)
+    │   └── data/network/        # ApiClient, OkHttp interceptors
+    └── gradle/libs.versions.toml  # All dependency versions declared here
 ```
 
 ## Environment Variables
 
-Copy `backend/.env` and fill in your values. Never commit secrets to source control.
-
-| Variable                | Description                  | Default     |
-|-------------------------|------------------------------|-------------|
-| `PORT`                  | Backend server port          | `8080`      |
-| `ENV`                   | Environment (`local`/`staging`/`production`) | `local` |
-| `BLUEPRINT_DB_HOST`     | Postgres host                | `localhost` |
-| `BLUEPRINT_DB_PORT`     | Postgres port                | `5432`      |
-| `BLUEPRINT_DB_DATABASE` | Database name                | `blueprint` |
-| `BLUEPRINT_DB_USERNAME` | Database user                | —           |
-| `BLUEPRINT_DB_PASSWORD` | Database password            | —           |
-| `BLUEPRINT_DB_SCHEMA`   | Postgres schema              | `public`    |
-
-## Development
-
-### Backend Makefile commands
+Copy the example files and fill in your values. Never commit `.env` or `.env.local`.
 
 ```bash
-make build       # compile the binary
-make run         # run without hot reload
-make watch       # run with Air hot reload
-make docker-run  # start the Postgres container
-make docker-down # stop the Postgres container
-make test        # run all tests
-make itest       # run integration tests only
-make clean       # remove compiled binary
+cp backend/.env.example backend/.env
+cp web/.env.example web/.env.local
 ```
 
-### Web commands
+Key backend variables (`backend/.env.example` has the full list):
+
+| Variable | Required | Description |
+|---|---|---|
+| `PORT` | Yes | HTTP server port (default `8080`) |
+| `ENV` | Yes | `local` / `staging` / `production` |
+| `BLUEPRINT_DB_*` | Yes | PostgreSQL connection (host, port, db, user, password, sslmode) |
+| `FIREBASE_PROJECT_ID` | Yes | Firebase project ID |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | Yes | Service account key (single-line JSON) |
+| `CORS_ALLOWED_ORIGINS` | Yes | Comma-separated allowed origins |
+| `REDIS_URL` | No | Redis URL — omit to disable caching and job queues |
+| `SENTRY_DSN` | No | Sentry DSN — omit to disable error tracking |
+| `R2_ACCOUNT_ID` | No | Cloudflare R2 — omit to disable object storage |
+
+See `RUNBOOK.md` for the full environment variable reference and production setup guide.
+
+## Development commands
+
+### Backend
 
 ```bash
-pnpm dev     # start dev server with hot reload
-pnpm build   # production build
-pnpm start   # serve production build
-pnpm lint    # run ESLint
+make docker-run      # start Postgres + Prometheus + Grafana
+make watch           # hot reload via Air
+make run             # run once, no hot reload
+make build           # compile binary
+make test            # unit + integration tests
+make itest           # integration tests only (requires Docker)
+make lint            # golangci-lint
+make swagger         # regenerate Swagger docs
+make docker-down     # stop containers
+make clean           # remove compiled binary
+
+# Migrations
+make migrate-create name=<slug>   # create timestamped migration file
+make migrate-up                   # apply all pending migrations
+make migrate-down                 # roll back last migration
+make migrate-status               # show applied vs. pending
+make migrate-version              # print current schema version
 ```
 
-### Mobile Gradle commands
+### Web
 
 ```bash
-./gradlew assembleDebug         # compile debug APK
-./gradlew installDebug          # build and install on connected device/emulator
-./gradlew lint                  # run Android lint
-./gradlew test                  # run unit tests (no device needed)
-./gradlew connectedAndroidTest  # run instrumented tests (device/emulator required)
-./gradlew clean                 # clean build outputs
+pnpm dev          # dev server → :3000
+pnpm build        # production build + TypeScript check
+pnpm start        # serve production build
+pnpm lint         # ESLint
+pnpm test         # Vitest unit + component tests
+pnpm test:watch   # Vitest watch mode (use during TDD)
+```
+
+### Mobile
+
+```bash
+./gradlew assembleDebug          # compile debug APK
+./gradlew installDebug           # build + install on device/emulator
+./gradlew lint                   # Android lint
+./gradlew test                   # unit tests (JVM, no device)
+./gradlew connectedAndroidTest   # instrumented tests (device/emulator required)
+./gradlew spotlessCheck          # ktlint formatting check
+./gradlew spotlessApply          # auto-fix ktlint formatting
+./gradlew clean                  # clean build outputs
 ```
 
 On Windows outside Git Bash, use `.\gradlew.bat` instead of `./gradlew`.
 
 ## Testing
 
-Backend tests use [Testcontainers](https://testcontainers.com/) to spin up a real PostgreSQL instance — no mocking the database layer.
+Backend tests use [Testcontainers](https://testcontainers.com/) to spin up real PostgreSQL and Redis instances — database mocking is prohibited.
 
 ```bash
 cd backend
 make test    # unit + integration tests
-make itest   # integration tests only
+make itest   # integration tests only (Docker must be running)
 ```
 
-Docker must be running for integration tests.
+Web tests use [Vitest](https://vitest.dev/) with `@testing-library/react`:
+
+```bash
+cd web
+pnpm test         # run once
+pnpm test:watch   # watch mode
+```
 
 Mobile has two test tiers:
 
 ```bash
 cd mobile
-./gradlew test                   # unit tests — runs on JVM, no device needed
+./gradlew test                   # unit tests — JVM only, no device needed
 ./gradlew connectedAndroidTest   # instrumented tests — requires emulator or device
 ```
 
 ## Working with AI Agents
 
-This template ships with a complete agentic development setup so AI assistants have the context they need to work on your project accurately and consistently.
+This template ships with a complete agentic development setup so AI assistants have the context they need to work accurately and consistently.
 
 ### For any AI coding agent
 
@@ -271,9 +299,15 @@ The recommended workflow for any implementation:
 2. Implement against documented patterns rather than general training data
 3. Update the doc file after implementation so the next agent session starts with accurate context
 
+### Architecture decisions
+
+Major technology choices are documented in [`docs/adr/`](docs/adr/) as Architecture Decision Records — why each technology was chosen and what trade-offs were accepted.
+
 ## Contributing
 
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+
+For deployment and operations, see [RUNBOOK.md](RUNBOOK.md).
 
 ## License
 

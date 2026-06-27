@@ -1,6 +1,6 @@
 ---
 topic: trpc
-last_verified: 2026-06-24
+last_verified: 2026-06-27
 sources:
   - server/trpc.ts
   - server/routers/_app.ts
@@ -149,18 +149,23 @@ export default async function HealthPage() {
 
 ## Provider wiring (`app/providers.tsx` + `app/layout.tsx`)
 
-`app/providers.tsx` is a thin `'use client'` wrapper. `SessionProvider` (from `next-auth/react`) wraps `TRPCProvider` so both session and React Query contexts are available to all Client Components:
+`app/providers.tsx` is a thin `'use client'` wrapper. From outermost to innermost: `NuqsAdapter` (URL search-param state), `SessionProvider` (next-auth session), `TRPCProvider` (React Query + tRPC). A `Toaster` is rendered as a sibling of `TRPCProvider` inside `SessionProvider`:
 
 ```tsx
 'use client'
 import { TRPCProvider } from '@/lib/trpc/client'
 import { SessionProvider } from 'next-auth/react'
+import { NuqsAdapter } from 'nuqs/adapters/next/app'
+import { Toaster } from '@/components/ui/sonner'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <SessionProvider>
-      <TRPCProvider>{children}</TRPCProvider>
-    </SessionProvider>
+    <NuqsAdapter>
+      <SessionProvider>
+        <TRPCProvider>{children}</TRPCProvider>
+        <Toaster richColors position="top-right" />
+      </SessionProvider>
+    </NuqsAdapter>
   )
 }
 ```

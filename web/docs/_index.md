@@ -17,3 +17,4 @@ The `docs` agent reads this index first to locate the right file.
 | Object storage (Cloudflare R2) — presign utility, uploadToR2, useUpload hook | [storage.md](storage.md) | `lib/storage.ts`, `lib/useUpload.ts` |
 | Authentication (NextAuth v5) — providers, session, proxy, forms, hooks | [auth.md](auth.md) | `auth.ts`, `proxy.ts`, `features/auth/` |
 | DataTable component (TanStack Table v8) — sorting, filtering, pagination, column definitions | [data-table.md](data-table.md) | `components/data-table/DataTable.tsx`, `components/data-table/columns.ts`, `components/data-table/index.ts`, `app/demo/page.tsx`, `app/demo/DemoTable.tsx` |
+| URL search-param state (nuqs) — useQueryState, parsers, server cache | [url-state.md](url-state.md) | `app/providers.tsx` |

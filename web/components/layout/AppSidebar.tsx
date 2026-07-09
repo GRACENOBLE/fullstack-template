@@ -1,5 +1,5 @@
-import Link from 'next/link'
 import { LayoutDashboard, Settings } from 'lucide-react'
+import { Logo } from '@/components/common/Logo'
 import {
   Sidebar,
   SidebarContent,
@@ -13,6 +13,7 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 import { UserMenu } from '@/features/auth/components/UserMenu'
+import Link from 'next/link'
 
 const navItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
@@ -23,9 +24,7 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="px-4 py-3">
-        <Link href="/" className="text-sm font-semibold tracking-tight hover:opacity-70 transition-opacity">
-          App
-        </Link>
+        <Logo />
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>

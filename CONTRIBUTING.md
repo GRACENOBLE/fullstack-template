@@ -105,20 +105,20 @@ Run the setup script once after cloning. It checks prerequisites, installs depen
 
 ```bash
 # macOS / Linux
-./setup.sh
+./scripts/setup.sh
 
 # Windows
-./setup.ps1
+./scripts/setup.ps1
 ```
 
 ### Starting all services
 
 ```bash
 # macOS / Linux — starts Postgres, backend, and web in one terminal
-./dev.sh
+./scripts/dev.sh
 
 # Windows — opens three separate PowerShell windows
-./dev.ps1
+./scripts/dev.ps1
 ```
 
 Or start services individually:

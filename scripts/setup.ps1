@@ -3,7 +3,7 @@
 # Run once after cloning the repo.
 
 $ErrorActionPreference = "Continue"
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$ScriptDir = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Definition)
 $Errors = 0
 
 # Banner

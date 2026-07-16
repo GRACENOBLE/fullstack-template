@@ -2,7 +2,7 @@
 # Usage: .\dev.ps1
 # Close each terminal window manually when done.
 
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$ScriptDir = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Definition)
 
 Write-Host "[postgres] Starting Docker Compose (Postgres)..." -ForegroundColor Blue
 Start-Process powershell -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", "Set-Location '$ScriptDir\backend'; make docker-run" `

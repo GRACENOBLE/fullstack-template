@@ -9,18 +9,18 @@
 
 setup:
 ifeq ($(OS),Windows_NT)
-	powershell -ExecutionPolicy Bypass -File setup.ps1
+	powershell -ExecutionPolicy Bypass -File scripts/setup.ps1
 else
-	bash setup.sh
+	bash scripts/setup.sh
 endif
 
 # ── Development ────────────────────────────────────────────────────────────────
 
 dev:
 ifeq ($(OS),Windows_NT)
-	powershell -ExecutionPolicy Bypass -File dev.ps1
+	powershell -ExecutionPolicy Bypass -File scripts/dev.ps1
 else
-	bash dev.sh
+	bash scripts/dev.sh
 endif
 
 dev-backend:

@@ -12,7 +12,7 @@ RED='\033[0;31m'
 BOLD='\033[1m'
 RESET='\033[0m'
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ERRORS=0
 
 # ── Banner ─────────────────────────────────────────────────────────────────────

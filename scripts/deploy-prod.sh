@@ -29,17 +29,24 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo -e "${YELLOW}Fetching ${REMOTE}/${BASE_BRANCH} and ${REMOTE}/${DEPLOY_BRANCH}...${RESET}"
-git fetch "$REMOTE" "$BASE_BRANCH" "$DEPLOY_BRANCH"
+echo -e "${YELLOW}Fetching from ${REMOTE}...${RESET}"
+git fetch "$REMOTE"
 
-if git show-ref --verify --quiet "refs/heads/$DEPLOY_BRANCH"; then
-  git checkout --quiet "$DEPLOY_BRANCH"
+if git show-ref --verify --quiet "refs/remotes/$REMOTE/$DEPLOY_BRANCH"; then
+  DEPLOY_BRANCH_EXISTS=true
+  if git show-ref --verify --quiet "refs/heads/$DEPLOY_BRANCH"; then
+    git checkout --quiet "$DEPLOY_BRANCH"
+  else
+    git checkout --quiet -b "$DEPLOY_BRANCH" "$REMOTE/$DEPLOY_BRANCH"
+  fi
+  # Make sure the local branch starts from exactly what's on the remote before
+  # rebasing, so we never rebase stale local commits onto main by accident.
+  git reset --hard "$REMOTE/$DEPLOY_BRANCH"
 else
-  git checkout --quiet -b "$DEPLOY_BRANCH" "$REMOTE/$DEPLOY_BRANCH"
+  # Remote branch doesn't exist yet (e.g. first deployment).
+  DEPLOY_BRANCH_EXISTS=false
+  git checkout --quiet -b "$DEPLOY_BRANCH" "$REMOTE/$BASE_BRANCH"
 fi
-# Make sure the local branch starts from exactly what's on the remote before
-# rebasing, so we never rebase stale local commits onto main by accident.
-git reset --hard "$REMOTE/$DEPLOY_BRANCH"
 
 echo -e "${YELLOW}Rebasing ${DEPLOY_BRANCH} onto ${REMOTE}/${BASE_BRANCH}...${RESET}"
 if ! git rebase "$REMOTE/$BASE_BRANCH"; then
@@ -54,15 +61,19 @@ fi
 
 echo ""
 echo -e "${YELLOW}About to force-push (with lease) ${DEPLOY_BRANCH} to ${REMOTE}. This will trigger a production deploy.${RESET}"
-COMMITS="$(git log "$REMOTE/$DEPLOY_BRANCH..$DEPLOY_BRANCH" --oneline)"
-if [ -z "$COMMITS" ]; then
-  echo "No new commits — ${DEPLOY_BRANCH} already matches ${BASE_BRANCH}."
+if [ "$DEPLOY_BRANCH_EXISTS" = true ]; then
+  COMMITS="$(git log "$REMOTE/$DEPLOY_BRANCH..$DEPLOY_BRANCH" --oneline)"
+  if [ -z "$COMMITS" ]; then
+    echo "No new commits — ${DEPLOY_BRANCH} already matches ${BASE_BRANCH}."
+  else
+    echo "$COMMITS"
+  fi
 else
-  echo "$COMMITS"
+  echo "Creating ${DEPLOY_BRANCH} on ${REMOTE} from ${BASE_BRANCH} (first deployment)."
 fi
 
 if [ "${CONFIRM:-}" != "yes" ]; then
-  read -r -p "Continue? [y/N] " reply
+  read -r -p "Continue? [y/N] " reply || true
   case "$reply" in
     [yY][eE][sS]|[yY]) ;;
     *) echo "Aborted. No push was made."; exit 1 ;;

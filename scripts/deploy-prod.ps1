@@ -22,22 +22,30 @@ $originalBranch = git rev-parse --abbrev-ref HEAD
 $cleanExit = $false
 
 try {
-    Write-Host "Fetching $Remote/$BaseBranch and $Remote/$DeployBranch..." -ForegroundColor Yellow
-    git fetch $Remote $BaseBranch $DeployBranch
+    Write-Host "Fetching from $Remote..." -ForegroundColor Yellow
+    git fetch $Remote
     if ($LASTEXITCODE -ne 0) { throw "git fetch failed" }
 
-    $branchExists = git show-ref --verify --quiet "refs/heads/$DeployBranch"
-    if ($LASTEXITCODE -eq 0) {
-        git checkout --quiet $DeployBranch
-    } else {
-        git checkout --quiet -b $DeployBranch "$Remote/$DeployBranch"
-    }
-    if ($LASTEXITCODE -ne 0) { throw "git checkout failed" }
+    git show-ref --verify --quiet "refs/remotes/$Remote/$DeployBranch"
+    $deployBranchExists = ($LASTEXITCODE -eq 0)
+    if ($deployBranchExists) {
+        git show-ref --verify --quiet "refs/heads/$DeployBranch"
+        if ($LASTEXITCODE -eq 0) {
+            git checkout --quiet $DeployBranch
+        } else {
+            git checkout --quiet -b $DeployBranch "$Remote/$DeployBranch"
+        }
+        if ($LASTEXITCODE -ne 0) { throw "git checkout failed" }
 
-    # Make sure the local branch starts from exactly what's on the remote
-    # before rebasing, so we never rebase stale local commits onto main.
-    git reset --hard "$Remote/$DeployBranch"
-    if ($LASTEXITCODE -ne 0) { throw "git reset failed" }
+        # Make sure the local branch starts from exactly what's on the remote
+        # before rebasing, so we never rebase stale local commits onto main.
+        git reset --hard "$Remote/$DeployBranch"
+        if ($LASTEXITCODE -ne 0) { throw "git reset failed" }
+    } else {
+        # Remote branch doesn't exist yet (e.g. first deployment).
+        git checkout --quiet -b $DeployBranch "$Remote/$BaseBranch"
+        if ($LASTEXITCODE -ne 0) { throw "git checkout failed" }
+    }
 
     Write-Host "Rebasing $DeployBranch onto $Remote/$BaseBranch..." -ForegroundColor Yellow
     git rebase "$Remote/$BaseBranch"
@@ -52,11 +60,15 @@ try {
 
     Write-Host ""
     Write-Host "About to force-push (with lease) $DeployBranch to $Remote. This will trigger a production deploy." -ForegroundColor Yellow
-    $commits = git log "$Remote/$DeployBranch..$DeployBranch" --oneline
-    if (-not $commits) {
-        Write-Host "No new commits -- $DeployBranch already matches $BaseBranch."
+    if ($deployBranchExists) {
+        $commits = git log "$Remote/$DeployBranch..$DeployBranch" --oneline
+        if (-not $commits) {
+            Write-Host "No new commits -- $DeployBranch already matches $BaseBranch."
+        } else {
+            $commits | ForEach-Object { Write-Host $_ }
+        }
     } else {
-        $commits | ForEach-Object { Write-Host $_ }
+        Write-Host "Creating $DeployBranch on $Remote from $BaseBranch (first deployment)."
     }
 
     if ($env:CONFIRM -ne "yes") {

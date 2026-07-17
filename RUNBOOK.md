@@ -180,9 +180,14 @@ There is no confirmation prompt — unlike production, staging is meant to alway
 
 You can also trigger the workflow manually from the **Actions** tab (`workflow_dispatch`), or run `bash scripts/sync-staging.sh` locally.
 
-The workflow pushes with the default `GITHUB_TOKEN`, which needs write access:
-- Repo **Settings → Actions → General → Workflow permissions** must be set to "Read and write permissions".
-- If `staging` is a protected branch, add an exception (or a bypass rule) for `github-actions[bot]`/this workflow, otherwise the force-push will be rejected.
+**The workflow checks out with a personal access token (PAT), not the default `GITHUB_TOKEN`.** This matters because of GitHub's built-in loop-prevention rule: pushes made with the default `GITHUB_TOKEN` do **not** trigger other `on: push` workflows. If your CD workflow deploys on `push: branches: [staging]`, a `GITHUB_TOKEN`-authenticated push here would update the `staging` ref without ever firing that deploy — it would look like the sync succeeded but nothing would actually deploy. A PAT belonging to a real account avoids that.
+
+To set it up:
+1. Generate a PAT with push access to this repo — a fine-grained token scoped to this repo with **Contents: Read and write** is enough; a classic token needs the `repo` scope.
+2. Add it as a repository secret named `SYNC_STAGING_PAT` (**Settings → Secrets and variables → Actions → New repository secret**).
+3. If `staging` is a protected branch, make sure the PAT's account is allowed to bypass (or is exempt from) those protection rules, otherwise the force-push will still be rejected.
+
+The commit identity used for the sync (`git config user.name`/`user.email`) is resolved from `github.actor` — whoever triggered the workflow (typically whoever merged the PR) — not hardcoded, so this works the same for any fork of this template.
 
 ### Production (manual)
 

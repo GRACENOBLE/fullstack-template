@@ -13,23 +13,30 @@ REMOTE="${REMOTE:-origin}"
 BASE_BRANCH="main"
 SYNC_BRANCH="staging"
 
-echo "Fetching ${REMOTE}/${BASE_BRANCH} and ${REMOTE}/${SYNC_BRANCH}..."
-git fetch "$REMOTE" "$BASE_BRANCH" "$SYNC_BRANCH"
+echo "Fetching from ${REMOTE}..."
+git fetch "$REMOTE"
 
-if git show-ref --verify --quiet "refs/heads/$SYNC_BRANCH"; then
-  git checkout --quiet "$SYNC_BRANCH"
+if git show-ref --verify --quiet "refs/remotes/$REMOTE/$SYNC_BRANCH"; then
+  REMOTE_SYNC_EXISTS=true
+  if git show-ref --verify --quiet "refs/heads/$SYNC_BRANCH"; then
+    git checkout --quiet "$SYNC_BRANCH"
+  else
+    git checkout --quiet -b "$SYNC_BRANCH" "$REMOTE/$SYNC_BRANCH"
+  fi
+  # Make sure the local branch starts from exactly what's on the remote before
+  # rebasing, so we never rebase stale local commits onto main by accident.
+  git reset --hard "$REMOTE/$SYNC_BRANCH"
 else
-  git checkout --quiet -b "$SYNC_BRANCH" "$REMOTE/$SYNC_BRANCH"
+  # Remote branch doesn't exist yet (e.g. first run of this template).
+  REMOTE_SYNC_EXISTS=false
+  git checkout --quiet -b "$SYNC_BRANCH" "$REMOTE/$BASE_BRANCH"
 fi
-# Make sure the local branch starts from exactly what's on the remote before
-# rebasing, so we never rebase stale local commits onto main by accident.
-git reset --hard "$REMOTE/$SYNC_BRANCH"
 
 echo "Rebasing ${SYNC_BRANCH} onto ${REMOTE}/${BASE_BRANCH}..."
 if ! git rebase "$REMOTE/$BASE_BRANCH"; then
   echo "Rebase of ${SYNC_BRANCH} onto ${REMOTE}/${BASE_BRANCH} hit conflicts." >&2
   echo "This needs manual resolution — sync did not run:" >&2
-  echo "  git fetch $REMOTE $BASE_BRANCH $SYNC_BRANCH" >&2
+  echo "  git fetch $REMOTE" >&2
   echo "  git checkout $SYNC_BRANCH && git reset --hard $REMOTE/$SYNC_BRANCH" >&2
   echo "  git rebase $REMOTE/$BASE_BRANCH   # resolve conflicts, then --continue" >&2
   echo "  git push --force-with-lease $REMOTE $SYNC_BRANCH" >&2
@@ -37,14 +44,17 @@ if ! git rebase "$REMOTE/$BASE_BRANCH"; then
   exit 1
 fi
 
-COMMITS="$(git log "$REMOTE/$SYNC_BRANCH..$SYNC_BRANCH" --oneline)"
-if [ -z "$COMMITS" ]; then
-  echo "No new commits — ${SYNC_BRANCH} already matches ${BASE_BRANCH}."
-  exit 0
+if [ "$REMOTE_SYNC_EXISTS" = true ]; then
+  COMMITS="$(git log "$REMOTE/$SYNC_BRANCH..$SYNC_BRANCH" --oneline)"
+  if [ -z "$COMMITS" ]; then
+    echo "No new commits — ${SYNC_BRANCH} already matches ${BASE_BRANCH}."
+    exit 0
+  fi
+  echo "Syncing ${SYNC_BRANCH}:"
+  echo "$COMMITS"
+else
+  echo "Creating ${SYNC_BRANCH} on ${REMOTE} from ${BASE_BRANCH} (first run)."
 fi
-
-echo "Syncing ${SYNC_BRANCH}:"
-echo "$COMMITS"
 
 git push --force-with-lease "$REMOTE" "$SYNC_BRANCH"
 echo "Synced: ${SYNC_BRANCH} pushed to ${REMOTE}."

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # dev.sh — start all services in parallel in a single terminal
-# Usage: ./dev.sh
+# Usage: ./scripts/dev.sh
 # Press Ctrl+C to stop everything.
 
 set -euo pipefail

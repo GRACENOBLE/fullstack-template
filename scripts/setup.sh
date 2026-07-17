@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # setup.sh — first-run setup for new contributors
-# Usage: ./setup.sh
+# Usage: ./scripts/setup.sh
 # Run once after cloning the repo.
 
 set -euo pipefail
@@ -101,7 +101,7 @@ fi
 # Abort if any hard prerequisite failed
 if [[ "$ERRORS" -gt 0 ]]; then
   echo ""
-  echo -e "${RED}${BOLD}$ERRORS prerequisite(s) failed. Fix the issues above and re-run ./setup.sh.${RESET}"
+  echo -e "${RED}${BOLD}$ERRORS prerequisite(s) failed. Fix the issues above and re-run ./scripts/setup.sh.${RESET}"
   echo ""
   exit 1
 fi
@@ -146,7 +146,7 @@ echo -e "${BOLD}${GREEN}║   You're all set! Run these commands to start develo
 echo -e "${BOLD}${GREEN}╚═══════════════════════════════════════════════════════════╝${RESET}"
 echo ""
 echo -e "  ${BOLD}Quickstart (all services in one terminal):${RESET}"
-echo -e "    ${YELLOW}./dev.sh${RESET}"
+echo -e "    ${YELLOW}./scripts/dev.sh${RESET}"
 echo ""
 echo -e "  ${BOLD}Or start each service individually:${RESET}"
 echo -e "    ${BLUE}cd backend && make docker-run${RESET}   # Postgres"

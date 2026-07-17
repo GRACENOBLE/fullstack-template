@@ -1,5 +1,5 @@
-# dev.ps1 — start all services in separate PowerShell windows (Windows equivalent of dev.sh)
-# Usage: .\dev.ps1
+﻿# dev.ps1 — start all services in separate PowerShell windows (Windows equivalent of dev.sh)
+# Usage: .\scripts\dev.ps1
 # Close each terminal window manually when done.
 
 $ScriptDir = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Definition)

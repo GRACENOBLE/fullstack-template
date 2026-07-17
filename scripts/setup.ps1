@@ -1,5 +1,5 @@
 # setup.ps1 -- first-run setup for new contributors (Windows / PowerShell)
-# Usage: .\setup.ps1
+# Usage: .\scripts\setup.ps1
 # Run once after cloning the repo.
 
 $ErrorActionPreference = "Continue"
@@ -113,7 +113,7 @@ if (Test-Path $androidHome) {
 # Abort on failures
 if ($Errors -gt 0) {
     Write-Host ""
-    Write-Host "$Errors prerequisite(s) failed. Fix the issues above and re-run .\setup.ps1." -ForegroundColor Red
+    Write-Host "$Errors prerequisite(s) failed. Fix the issues above and re-run .\scripts\setup.ps1." -ForegroundColor Red
     Write-Host ""
     exit 1
 }
@@ -167,7 +167,7 @@ Write-Host "   You're all set! Run these commands to start developing:  " -Foreg
 Write-Host "============================================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "  Quickstart (all services in separate windows):" -ForegroundColor White
-Write-Host "    .\dev.ps1" -ForegroundColor Yellow
+Write-Host "    .\scripts\dev.ps1" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "  Or start each service individually:" -ForegroundColor White
 Write-Host "    cd backend; make docker-run   # Postgres" -ForegroundColor Blue

@@ -73,3 +73,15 @@ lint: lint-backend lint-web lint-mobile
 tidy:
 	cd backend && go mod tidy
 	cd web && pnpm install
+
+# ── Deploy ─────────────────────────────────────────────────────────────────────
+
+# Rebases `production` onto `main` and force-pushes (with lease) to trigger a
+# deploy. Aborts if the working tree is dirty or the rebase conflicts; prompts
+# for confirmation before pushing unless CONFIRM=yes is set.
+deploy-prod:
+ifeq ($(OS),Windows_NT)
+	pwsh -ExecutionPolicy Bypass -File scripts/deploy-prod.ps1
+else
+	bash scripts/deploy-prod.sh
+endif

@@ -114,9 +114,16 @@ fullstack-template/
 ├── TEMPLATE_STATUS.md           # Readiness gap tracker
 ├── docs/
 │   └── adr/                     # Architecture Decision Records
+├── .github/
+│   └── workflows/
+│       ├── backend-ci.yml / web-ci.yml / mobile-ci.yml  # Per-layer CI on PRs
+│       ├── labeler.yml                # Auto-labels PRs by changed path
+│       └── sync-staging.yml           # Auto-syncs `staging` to `main` on every merge
 ├── scripts/
-│   ├── dev.sh / dev.ps1         # Start all services in parallel
-│   └── setup.sh / setup.ps1     # First-run contributor setup
+│   ├── dev.sh / dev.ps1               # Start all services in parallel
+│   ├── setup.sh / setup.ps1           # First-run contributor setup
+│   ├── deploy-prod.sh / deploy-prod.ps1  # Rebase production onto main and force-push (with lease) — manual
+│   └── sync-staging.sh                # Rebase staging onto main and force-push (with lease) — run by CI
 ├── renovate.json                # Automated dependency updates
 ├── .claude/
 │   ├── agents/                  # Specialized Claude subagents
@@ -239,6 +246,16 @@ pnpm test:watch   # Vitest watch mode (use during TDD)
 ```
 
 On Windows outside Git Bash, use `.\gradlew.bat` instead of `./gradlew`.
+
+### Deploy
+
+```bash
+make deploy-prod   # rebase the `production` branch onto `main` and force-push (with lease) to trigger a deploy
+```
+
+`staging` syncs to `main` automatically on every merge via `.github/workflows/sync-staging.yml` — no manual step needed. `production` only advances when you run `make deploy-prod`.
+
+See [RUNBOOK.md](RUNBOOK.md#triggering-a-deploy) for the full deploy workflow, prerequisites, and platform setup.
 
 ## Testing
 

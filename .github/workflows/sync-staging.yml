@@ -1,0 +1,42 @@
+name: Sync Staging
+
+# Keeps the `staging` branch tracking `main` so hosting platforms configured
+# to auto-deploy from `staging` pick up every merge automatically. This
+# mirrors what `make deploy-prod` (scripts/deploy-prod.sh) does for
+# `production`, but runs unattended — no confirmation prompt — since staging
+# is meant to always match main.
+#
+# Uses a PAT (SYNC_STAGING_PAT), not the default GITHUB_TOKEN, for the push:
+# GitHub's built-in loop-prevention rule means pushes made with the default
+# GITHUB_TOKEN do NOT trigger other `on: push` workflows — so any CD workflow
+# with a `push: branches: [staging]` trigger would silently never fire, and
+# this workflow would update the staging ref without actually deploying
+# anything. A PAT belonging to a real account avoids that. Generate a PAT
+# (repo scope, push access to this repo) and add it as a repository secret
+# named SYNC_STAGING_PAT. Commit authorship is resolved from github.actor
+# below, not hardcoded, so this works unmodified for any fork.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_STAGING_PAT }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+
+      - name: Sync staging onto main
+        run: bash scripts/sync-staging.sh

@@ -10,6 +10,7 @@ Operational guide for deploying and maintaining the fullstack template in stagin
 - [Environment variables](#environment-variables)
 - [First-time production setup](#first-time-production-setup)
 - [Pre-launch checklist](#pre-launch-checklist)
+- [Triggering a deploy](#triggering-a-deploy)
 - [Deploying the backend](#deploying-the-backend)
 - [Deploying the web app](#deploying-the-web-app)
 - [Deploying the mobile app](#deploying-the-mobile-app)
@@ -152,6 +153,68 @@ Run through this before going live with any project based on this template.
 - [ ] `google-services.json` in the release build points to the production Firebase project
 - [ ] Release APK/AAB is signed with the production keystore (not the debug keystore)
 - [ ] Staged rollout is configured in Google Play Console before full release
+
+---
+
+## Triggering a deploy
+
+This template uses two branches as deploy triggers, kept separate from `main`:
+
+| Branch | Advances | Trigger |
+|---|---|---|
+| `staging` | Automatically, on every merge to `main` | GitHub Actions (`.github/workflows/sync-staging.yml`) |
+| `production` | Manually, whenever you choose | `make deploy-prod` |
+
+Configure your hosting platforms (Vercel, Railway, Fly.io, etc.) to auto-deploy from these branches — `staging` for the staging environment, `production` for production — rather than from `main`. That way merges to `main` land safely, staging always reflects the latest `main`, and a production deploy only fires when you explicitly advance `production`.
+
+### Staging (automatic)
+
+`.github/workflows/sync-staging.yml` runs on every push to `main` (i.e. every merge) and calls `scripts/sync-staging.sh`, which:
+
+1. Fetches `origin/main` and `origin/staging`.
+2. Checks out (or creates) a local `staging` branch reset to `origin/staging`.
+3. Rebases it onto `origin/main`.
+4. Force-pushes `staging` with `--force-with-lease`.
+
+There is no confirmation prompt — unlike production, staging is meant to always match `main`. If the rebase hits a conflict (only possible if someone committed directly to `staging`), the job aborts the rebase and fails without pushing; fix it manually with the same commands `scripts/sync-staging.sh` prints on failure, or delete stray commits from `staging` so it stops diverging from `main`.
+
+You can also trigger the workflow manually from the **Actions** tab (`workflow_dispatch`), or run `bash scripts/sync-staging.sh` locally.
+
+**The workflow checks out with a personal access token (PAT), not the default `GITHUB_TOKEN`.** This matters because of GitHub's built-in loop-prevention rule: pushes made with the default `GITHUB_TOKEN` do **not** trigger other `on: push` workflows. If your CD workflow deploys on `push: branches: [staging]`, a `GITHUB_TOKEN`-authenticated push here would update the `staging` ref without ever firing that deploy — it would look like the sync succeeded but nothing would actually deploy. A PAT belonging to a real account avoids that.
+
+To set it up:
+1. Generate a PAT with push access to this repo — a fine-grained token scoped to this repo with **Contents: Read and write** is enough; a classic token needs the `repo` scope.
+2. Add it as a repository secret named `SYNC_STAGING_PAT` (**Settings → Secrets and variables → Actions → New repository secret**).
+3. If `staging` is a protected branch, make sure the PAT's account is allowed to bypass (or is exempt from) those protection rules, otherwise the force-push will still be rejected.
+
+The commit identity used for the sync (`git config user.name`/`user.email`) is resolved from `github.actor` — whoever triggered the workflow (typically whoever merged the PR) — not hardcoded, so this works the same for any fork of this template.
+
+### Production (manual)
+
+Advance `production` to match `main` with:
+
+```bash
+make deploy-prod
+```
+
+This runs `scripts/deploy-prod.sh` (macOS/Linux) or `scripts/deploy-prod.ps1` (Windows) via the `deploy-prod` Makefile target, which handles both platforms automatically. The script:
+
+1. Aborts if the working tree is dirty — commit, stash, or discard changes first.
+2. Fetches `origin/main` and `origin/production`.
+3. Checks out (or creates) a local `production` branch reset to `origin/production`.
+4. Rebases it onto `origin/main`.
+5. Shows the commits about to ship and prompts `Continue? [y/N]` before pushing.
+6. Force-pushes `production` with `--force-with-lease` (never a bare `--force`), so the push fails instead of clobbering someone else's work if `production` moved remotely since the last fetch.
+
+Set `CONFIRM=yes` to skip the interactive prompt (e.g. from CI):
+
+```bash
+CONFIRM=yes make deploy-prod
+```
+
+If the rebase hits conflicts, the script leaves the branch mid-rebase and prints next steps — resolve the conflicts, then run `git rebase --continue` followed by `git push --force-with-lease origin production`, or `git rebase --abort` to back out. The original branch is restored automatically on both success and abort.
+
+`make deploy-prod` only advances the branch — it does not run database migrations or build anything. Apply pending migrations against production **before** running it; see [Database migrations](#database-migrations).
 
 ---
 

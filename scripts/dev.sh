@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # dev.sh — start all services in parallel in a single terminal
-# Usage: ./dev.sh
+# Usage: ./scripts/dev.sh
 # Press Ctrl+C to stop everything.
 
 set -euo pipefail
@@ -10,7 +10,7 @@ GREEN='\033[1;32m'
 YELLOW='\033[1;33m'
 RESET='\033[0m'
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Kill all background jobs when the script exits (Ctrl+C or error)
 trap 'echo ""; echo "Stopping all services..."; kill $(jobs -p) 2>/dev/null; wait' EXIT

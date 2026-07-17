@@ -68,12 +68,12 @@ git clone https://github.com/your-username/fullstack-template.git
 cd fullstack-template
 
 # First-time setup: installs deps, copies .env.example files, checks prerequisites
-./setup.sh        # macOS / Linux
-.\setup.ps1       # Windows PowerShell
+./scripts/setup.sh        # macOS / Linux
+.\scripts\setup.ps1       # Windows PowerShell
 
 # Start all three services (backend + web + mobile hot-reload) in parallel
-./dev.sh          # macOS / Linux
-.\dev.ps1         # Windows PowerShell
+./scripts/dev.sh          # macOS / Linux
+.\scripts\dev.ps1         # Windows PowerShell
 ```
 
 ### Manual setup
@@ -114,8 +114,9 @@ fullstack-template/
 ├── TEMPLATE_STATUS.md           # Readiness gap tracker
 ├── docs/
 │   └── adr/                     # Architecture Decision Records
-├── dev.sh / dev.ps1             # Start all services in parallel
-├── setup.sh / setup.ps1         # First-run contributor setup
+├── scripts/
+│   ├── dev.sh / dev.ps1         # Start all services in parallel
+│   └── setup.sh / setup.ps1     # First-run contributor setup
 ├── renovate.json                # Automated dependency updates
 ├── .claude/
 │   ├── agents/                  # Specialized Claude subagents

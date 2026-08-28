@@ -46,15 +46,15 @@ lint:
 
 # Live Reload
 watch:
-	@powershell -ExecutionPolicy Bypass -Command "if (Get-Command air -ErrorAction SilentlyContinue) { \
+	@if command -v air > /dev/null 2>&1; then \
 		air; \
-		Write-Output 'Watching...'; \
-	} else { \
-		Write-Output 'Installing air...'; \
+	else \
+		echo "Installing air..."; \
 		go install github.com/air-verse/air@latest; \
-		air; \
-		Write-Output 'Watching...'; \
-	}"
+		AIR_BIN="$$(go env GOBIN)"; \
+		if [ -z "$$AIR_BIN" ]; then AIR_BIN="$$(go env GOPATH)/bin"; fi; \
+		"$$AIR_BIN/air"; \
+	fi
 
 # ---- Migrations (goose) ----
 

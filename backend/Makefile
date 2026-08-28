@@ -51,7 +51,9 @@ watch:
 	else \
 		echo "Installing air..."; \
 		go install github.com/air-verse/air@latest; \
-		air; \
+		AIR_BIN="$$(go env GOBIN)"; \
+		if [ -z "$$AIR_BIN" ]; then AIR_BIN="$$(go env GOPATH)/bin"; fi; \
+		"$$AIR_BIN/air"; \
 	fi
 
 # ---- Migrations (goose) ----
